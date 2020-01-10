@@ -34,29 +34,58 @@ local innersection_num = sections.innersection_num
 local section_num = sections.section_num
 local section_area = sections.section_area
 
+function sections.pattern_escape(text)
+	if text ~= nil then
+		text = string.gsub(text, "%(", "%%(")
+		text = string.gsub(text, "%)", "%%)")
+		text = string.gsub(text, "%.", "%%.")
+		text = string.gsub(text, "%*", "%%*")
+		text = string.gsub(text, "%+", "%%+")
+		text = string.gsub(text, "%-", "%%-")
+		text = string.gsub(text, "%[", "%%[")
+		text = string.gsub(text, "%?", "%%?")
+	end
+	return text
+end
+
+local function file_exists(name)
+   local f = io.open(name, "r")
+   if f ~= nil then io.close(f) return true else return false end
+end
+
 function sections.logging(pos, name, action, item)
-	local f = io.open(WPATH..DIR_DELIM.."player_actions.txt", "a+")
+	local day = os.date("%w")
+	local fname = WPATH..DIR_DELIM.."player_actions_"..day..".txt"
+	local f = io.open(fname, "a+")
 	local num = section_num(pos)
 	local spos = minetest.pos_to_string(pos)
 	f:write (num..": "..name.." "..action.." '"..item.name.."' on "..spos.." at '"..os.date(), "'\n")
 	f:close()
 end
 
-function sections.grep(pos, name)
+function sections.grep(pos, days, name)
+	local t = minetest.get_us_time()
 	local tbl = {" ########### Start of Query ############"}
 	local num = section_num(pos)
-	for line in io.lines(WPATH..DIR_DELIM.."player_actions.txt") do
-		local parts = string.split(line, ":", false, 1)
-		if parts[1] == num then
-			if name == "" or string.find(parts[2], name) then
-				table.insert(tbl, parts[2])
-				if #tbl >= 100 then
-					table.insert(tbl, "***************** max (100) reached *******************")
-					return tbl
+	local day = (os.date("%w") + 21 + tonumber(days)) % 7
+	local fname = WPATH..DIR_DELIM.."player_actions_"..day..".txt"
+	name = sections.pattern_escape(name)
+	if file_exists(fname) then
+		for line in io.lines(fname) do
+			local parts = string.split(line, ":", false, 1)
+			if parts[1] == num then
+				if name == "" or string.find(parts[2], name) then
+					table.insert(tbl, parts[2])
+					if #tbl >= 100 then
+						table.insert(tbl, "***************** max (100) reached *******************")
+						return tbl
+					end
 				end
 			end
 		end
-    end
-	table.insert(tbl, (#tbl-1).." matches found.")
+	end
+	t = minetest.get_us_time() - t
+	t = string.format("%s", t/1000000)
+	table.insert(tbl, (#tbl-1).." matches found in "..t.." seconds")
 	return tbl
 end
