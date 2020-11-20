@@ -1,3 +1,13 @@
+--[[
+
+	Sections
+	========
+
+	Copyright (C) 2020 Joachim Stolberg
+
+	GPL v3
+	See LICENSE.txt for more information
+]]--
 
 local marker_region = {}
 
@@ -11,11 +21,11 @@ function sections.unmark_region(name)
 	end
 end
 
-function sections.mark_region(name, pos1, pos2, owner)
+-- name ist der Name des Spielers
+function sections.mark_region(name, pos1, pos2, infotext)
 
 	sections.unmark_region(name)
 	
-	local thickness = 0.2
 	local sizex, sizey, sizez = (1 + pos2.x - pos1.x) / 2, (1 + pos2.y - pos1.y) / 2, (1 + pos2.z - pos1.z) / 2
 	local markers = {}
 
@@ -28,8 +38,8 @@ function sections.mark_region(name, pos1, pos2, owner)
 				--collisionbox = {-sizex, -sizey, -thickness, sizex, sizey, thickness},
 				collisionbox = {0,0,0, 0,0,0},
 			})
-			if owner then
-				marker:set_nametag_attributes({text = owner})
+			if infotext then
+				marker:set_nametag_attributes({text = infotext})
 			end
 			marker:get_luaentity().player_name = name
 			table.insert(markers, marker)
@@ -71,13 +81,13 @@ minetest.register_entity(":sections:region_cube", {
 		physical = false,
 		glow = 15,
 	},
-	on_step = function(self, dtime)
+	on_step = function(self)
 		if marker_region[self.player_name] == nil then
 			self.object:remove()
 			return
 		end
 	end,
-	on_punch = function(self, hitter)
+	on_punch = function(self)
 		sections.unmark_region(self.player_name)
 	end,
 })

@@ -1,7 +1,18 @@
+--[[
+
+	Sections
+	========
+
+	Copyright (C) 2020 Joachim Stolberg
+
+	GPL v3
+	See LICENSE.txt for more information
+]]--
 local WPATH = minetest.get_worldpath()
 
 function sections.section_num(pos)
 	local xpos = math.floor(pos.x / 32)
+	local ypos = math.floor(pos.y / 32)
 	local zpos = math.floor(pos.z / 32)
 	if xpos < 0 then
 		xpos = "E"..(-xpos)
@@ -13,26 +24,19 @@ function sections.section_num(pos)
 	else
 		zpos = "N"..zpos
 	end
-	return zpos..xpos
-end
-
-function sections.innersection_num(pos)
-	local xpos = math.floor((pos.x % 32) / 8)
-	local zpos = math.floor((pos.z % 32) / 8)
-	return xpos*10 + zpos
+	return zpos..xpos.."V"..ypos
 end
 
 function sections.section_area(pos)
 	local xpos = (math.floor(pos.x / 32) * 32)
+	local ypos = (math.floor(pos.y / 32) * 32)
 	local zpos = (math.floor(pos.z / 32) * 32)
-	local pos1 = {x = xpos, y = pos.y - 16, z = zpos}
-	local pos2 = {x = xpos + 31, y = pos.y + 16, z = zpos + 31}
+	local pos1 = {x = xpos, y = ypos, z = zpos}
+	local pos2 = {x = xpos + 31, y = ypos + 31, z = zpos + 31}
 	return pos1, pos2
 end
 
-local innersection_num = sections.innersection_num
 local section_num = sections.section_num
-local section_area = sections.section_area
 
 function sections.pattern_escape(text)
 	if text ~= nil then
@@ -63,22 +67,29 @@ function sections.logging(pos, name, action, item)
 	f:close()
 end
 
-function sections.grep(pos, days, name)
+-- see https://www.lua.org/pil/21.2.1.html
+function sections.grep(pos, name)
 	local t = minetest.get_us_time()
 	local tbl = {" ########### Start of Query ############"}
 	local num = section_num(pos)
-	local day = (os.date("%w") + 21 + tonumber(days)) % 7
-	local fname = WPATH..DIR_DELIM.."player_actions_"..day..".txt"
+	local fname = WPATH..DIR_DELIM.."action.txt"
+	local BUFSIZE = 2^13     -- 8K
 	name = sections.pattern_escape(name)
 	if file_exists(fname) then
-		for line in io.lines(fname) do
-			local parts = string.split(line, ":", false, 1)
-			if parts[1] == num then
-				if name == "" or string.find(parts[2], name) then
-					table.insert(tbl, parts[2])
-					if #tbl >= 100 then
-						table.insert(tbl, "***************** max (100) reached *******************")
-						return tbl
+		local f = io.input(fname)
+		while true do
+			local lines, rest = f:read(BUFSIZE, "*line")
+			if not lines then break end
+			if rest then lines = lines .. rest .. '\n' end
+			for _,line in ipairs(string.split(lines, "\n")) do
+				local parts = string.split(line, " ", false, 1)
+				if parts[1] == num then
+					if name == "" or string.find(parts[2], name) then
+						table.insert(tbl, parts[2])
+						if #tbl >= 100 then
+							table.insert(tbl, "***************** max (100) reached *******************")
+							return tbl
+						end
 					end
 				end
 			end
@@ -89,3 +100,9 @@ function sections.grep(pos, days, name)
 	table.insert(tbl, (#tbl-1).." matches found in "..t.." seconds")
 	return tbl
 end
+
+minetest.after(1, function()
+	local day = os.date("%w")
+	local fname = WPATH..DIR_DELIM.."player_actions_"..day..".txt"
+	os.remove(fname)
+end)
