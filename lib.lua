@@ -24,7 +24,12 @@ function sections.section_num(pos)
 	else
 		zpos = "N"..zpos
 	end
-	return zpos..xpos.."V"..ypos
+	if ypos < 0 then
+		ypos = "D"..(-ypos)
+	else
+		ypos = "U"..ypos
+	end
+	return zpos..xpos..ypos
 end
 
 function sections.section_area(pos)
