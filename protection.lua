@@ -9,6 +9,8 @@
 	See LICENSE.txt for more information
 ]]--
 
+local P2S = function(pos) if pos then return minetest.pos_to_string(pos) end end
+
 ------------------------------------------------------------------
 -- Data base storage
 -------------------------------------------------------------------
@@ -46,9 +48,9 @@ minetest.after(60*61, update_mod_storage)
 -------------------------------------------------------------------
 local Offsets = {}
 
-for x = -32, 32, 32 do
-	for y = -32, 32, 32 do
-		for z = -32, 32, 32 do
+for x = -48, 48, 48 do
+	for y = -48, 48, 48 do
+		for z = -48, 48, 48 do
 			table.insert(Offsets, {x = x, y = y, z = z})
 		end
 	end
@@ -63,6 +65,40 @@ local function get_surrounding(pos)
 			return vector.add(pos, Offsets[i])
 		end
 	end
+end
+
+local function find_surface(pos)
+	local pos1 = table.copy(pos)
+	for y = 1,48 do
+		local node = minetest.get_node(pos1)
+		if node.name ~= "air" then
+			pos1.y = pos1.y + 1
+			return pos1
+		end
+		pos1.y = pos1.y - 1
+	end
+end
+			
+
+local function place_markers(pos1, pos2)
+	local pos
+	
+	pos = find_surface({x = pos1.x, y = pos2.y, z = pos1.z})
+	minetest.add_node(pos, {name = "wool:yellow"})
+	pos.y = pos.y + 1
+	minetest.add_node(pos, {name = "wool:red"})
+	pos = find_surface({x = pos2.x, y = pos2.y, z = pos2.z})
+	minetest.add_node(pos, {name = "wool:yellow"})
+	pos.y = pos.y + 1
+	minetest.add_node(pos, {name = "wool:red"})
+	pos = find_surface({x = pos2.x, y = pos2.y, z = pos1.z})
+	minetest.add_node(pos, {name = "wool:yellow"})
+	pos.y = pos.y + 1
+	minetest.add_node(pos, {name = "wool:red"})
+	pos = find_surface({x = pos1.x, y = pos2.y, z = pos2.z})
+	minetest.add_node(pos, {name = "wool:yellow"})
+	pos.y = pos.y + 1
+	minetest.add_node(pos, {name = "wool:red"})
 end
 
 local function get_owner(num)
@@ -88,7 +124,7 @@ end
 
 local function has_area_rights(num, name)
 	local items = ProtectedSections[num]
-	if not items then return end
+	if not items then return true end
 	if ProtectedSections[num].owner == name then
 		return true
 	end
@@ -114,15 +150,15 @@ end
 minetest.register_chatcommand("section_info", {
 	params = "",
 	description = "Output section owner and additional player names.",
-	func = function(name)
-		local player = minetest.get_player_by_name(name)
+	func = function(caller)
+		local player = minetest.get_player_by_name(caller)
 		if player then
 			local pos = vector.round(player:get_pos())
 			local num = sections.section_num(pos)
 			local items = ProtectedSections[num]
 			if items then
 				local pos1, pos2 = sections.section_area(pos)
-				sections.mark_region(name, pos1, pos2, num)
+				sections.mark_region(caller, pos1, pos2, num)
 				return true, num..": Your position is protected by: " .. get_names(num)
 			else
 				return true, num..": Your position is not protected."
@@ -144,7 +180,24 @@ minetest.register_chatcommand("section_protect", {
 				return false, num..": Section already protected."
 			end
 			ProtectedSections[num] = {owner = "superminer", names = {}}
+			local pos1, pos2 = sections.section_area(pos)
+			sections.mark_region(caller, pos1, pos2, num)
 			return true, num..": Section protected."
+		end
+	end,
+})
+
+minetest.register_chatcommand("section_mark", {
+	params = "",
+	privs = {superminer = true},
+	description = "Mark current section will wool blocks.",
+	func = function(caller)
+		local player = minetest.get_player_by_name(caller)
+		if player then
+			local pos = vector.round(player:get_pos())
+			local pos1, pos2 = sections.section_area(pos)
+			place_markers(pos1, pos2)
+			return true,"Markers placed."
 		end
 	end,
 })
@@ -157,13 +210,18 @@ minetest.register_chatcommand("section_test27", {
 		local player = minetest.get_player_by_name(caller)
 		if player then
 			local pos = vector.round(player:get_pos())
+			local protections = {}
 			for pos2 in get_surrounding(pos) do
 				local num = sections.section_num(pos2)
 				if ProtectedSections[num] then
-					return false, num..": Section already protected by " .. ProtectedSections[num].owner
+					table.insert(protections, num)
 				end
 			end
-			return true, "No section is protected."
+			if not next(protections) then
+				return true, "No section is protected."
+			else
+				return true, "Protected sections: " .. table.concat(protections, ", ")
+			end
 		end
 	end,
 })
@@ -182,7 +240,9 @@ minetest.register_chatcommand("section_protect27", {
 					ProtectedSections[num] = {owner = "superminer", names = {}}
 				end
 			end
-			return true, "All sections protected."
+			local pos1, _ = sections.section_area({x = pos.x - 48, y = pos.y - 48, z = pos.z - 48})
+			local _, pos2 = sections.section_area({x = pos.x + 48, y = pos.y + 48, z = pos.z + 48})
+			return true, "All sections from " .. P2S(pos1) .. " to " .. P2S(pos2) .. " are protected."
 		end
 	end,
 })

@@ -35,7 +35,6 @@ function sections.mark_region(name, pos1, pos2, infotext)
 		if marker ~= nil then
 			marker:set_properties({
 				visual_size={x=sizex * 2, y=sizey * 2},
-				--collisionbox = {-sizex, -sizey, -thickness, sizex, sizey, thickness},
 				collisionbox = {0,0,0, 0,0,0},
 			})
 			if infotext then
@@ -52,7 +51,6 @@ function sections.mark_region(name, pos1, pos2, infotext)
 		if marker ~= nil then
 			marker:set_properties({
 				visual_size={x=sizez * 2, y=sizey * 2},
-				--collisionbox = {-thickness, -sizey, -sizez, thickness, sizey, sizez},
 				collisionbox = {0,0,0, 0,0,0},
 			})
 			marker:setyaw(math.pi / 2)

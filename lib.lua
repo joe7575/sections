@@ -3,7 +3,7 @@
 	Sections
 	========
 
-	Copyright (C) 2020 Joachim Stolberg
+	Copyright (C) 2020-2021 Joachim Stolberg
 
 	GPL v3
 	See LICENSE.txt for more information
@@ -11,9 +11,9 @@
 local WPATH = minetest.get_worldpath()
 
 function sections.section_num(pos)
-	local xpos = math.floor(pos.x / 32)
-	local ypos = math.floor(pos.y / 32)
-	local zpos = math.floor(pos.z / 32)
+	local xpos = math.floor((pos.x + 8) / 48)
+	local ypos = math.floor((pos.y + 8) / 48)
+	local zpos = math.floor((pos.z + 8) / 48)
 	if xpos < 0 then
 		xpos = "E"..(-xpos)
 	else
@@ -33,11 +33,11 @@ function sections.section_num(pos)
 end
 
 function sections.section_area(pos)
-	local xpos = (math.floor(pos.x / 32) * 32)
-	local ypos = (math.floor(pos.y / 32) * 32)
-	local zpos = (math.floor(pos.z / 32) * 32)
+	local xpos = (math.floor((pos.x + 8) / 48) * 48) - 8
+	local ypos = (math.floor((pos.y + 8) / 48) * 48) - 8
+	local zpos = (math.floor((pos.z + 8) / 48) * 48) - 8
 	local pos1 = {x = xpos, y = ypos, z = zpos}
-	local pos2 = {x = xpos + 31, y = ypos + 31, z = zpos + 31}
+	local pos2 = {x = xpos + 47, y = ypos + 47, z = zpos + 47}
 	return pos1, pos2
 end
 
