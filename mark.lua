@@ -24,7 +24,7 @@ end
 -- name ist der Name des Spielers
 function sections.mark_region(name, pos1, pos2, infotext)
 
-	sections.unmark_region(name)
+	--sections.unmark_region(name)
 	
 	local sizex, sizey, sizez = (1 + pos2.x - pos1.x) / 2, (1 + pos2.y - pos1.y) / 2, (1 + pos2.z - pos1.z) / 2
 	local markers = {}
@@ -60,7 +60,6 @@ function sections.mark_region(name, pos1, pos2, infotext)
 	end
 
 	marker_region[name] = markers
-	minetest.after(60, sections.unmark_region, name)
 end
 
 function sections.switch_region(name, pos1, pos2)
@@ -78,15 +77,16 @@ minetest.register_entity(":sections:region_cube", {
 		--use_texture_alpha = true,
 		physical = false,
 		glow = 15,
+		collide_with_objects = false,
+		pointable = false,
+		static_save = false,	
 	},
-	on_step = function(self)
-		if marker_region[self.player_name] == nil then
+	on_step = function(self, dtime)
+		self.ttl = self.ttl or 60
+		self.ttl = self.ttl - dtime
+		if self.ttl <= 0 then
 			self.object:remove()
-			return
 		end
-	end,
-	on_punch = function(self)
-		sections.unmark_region(self.player_name)
 	end,
 })
 

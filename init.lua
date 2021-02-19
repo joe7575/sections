@@ -9,7 +9,7 @@
 	See LICENSE.txt for more information
 ]]--
 
--- Sections (48x48x48 blocks) used for protection areas, statistics and more
+-- Sections (16x16x16 blocks) used for protection areas, statistics and more
 
 sections = {}
 dofile(minetest.get_modpath("sections") .. "/mark.lua")

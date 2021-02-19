@@ -14,14 +14,86 @@ local P2S = function(pos) if pos then return minetest.pos_to_string(pos) end end
 ------------------------------------------------------------------
 -- Data base storage
 -------------------------------------------------------------------
+local function serialize_names(item)
+	local t = {item.owner or "superminer"}
+	for k,v in pairs(item.names or {}) do
+		table.insert(t, v)
+	end
+	return table.concat(t, ",")
+end
+
+local function deserialize_names(s)
+	local names = {}
+	local owner = nil
+	for n in s:gmatch("[^,]+") do
+		if not owner then
+			owner = n
+		else
+			names[#names + 1] = n
+		end
+	end
+	return {owner = owner, names = names}
+end
+
+local function deserialize(s)
+	local tbl = {}
+	for line in s:gmatch("[^;]+") do
+		local _, _, k, names = string.find(line, "([^=]+)=([^=]+)")
+		tbl[k] = deserialize_names(names)
+	end
+	return tbl
+end
+
+local function serialize(data)
+	local tbl = {}
+	for k,v in pairs(data) do
+		tbl[#tbl+1] = k.."="..serialize_names(v)
+	end
+	return table.concat(tbl, ";")
+end
+
+local function convertV1(s)
+	local function old_section_pos(num)
+		local _, _, z, zpos, x, xpos, y, ypos = string.find(num, "(%u)(%d+)(%u)(%d+)(%u)(%d+)")
+		xpos = ((xpos * 48) - 8) * (x == "E" and -1 or 1)
+		ypos = ((ypos * 48) - 8) * (y == "D" and -1 or 1)
+		zpos = ((zpos * 48) - 8) * (z == "S" and -1 or 1)
+		return {x = xpos, y = ypos, z = zpos}
+	end
+
+	local tbl1 = minetest.deserialize(s) or {}
+	local tbl2 = {}
+	
+	for k,v in pairs(tbl1) do
+		local pos = old_section_pos(k)
+		for x = 0, 32, 16 do
+		for y = 0, 32, 16 do
+		for z = 0, 32, 16 do
+			local num = sections.section_num({x = pos.x + x, y = pos.y + y, z = pos.z + z})
+			tbl2[num] = v
+		end
+		end
+		end
+	end
+	
+	return tbl2
+end
+
 local storage = minetest.get_mod_storage()
-local ProtectedSections = minetest.deserialize(storage:get_string("ProtectedSections")) or {}
-local Version = minetest.deserialize(storage:get_string("Version")) or 1
+local Version = minetest.deserialize(storage:get_string("Version")) or 2
+local ProtectedSections = {}
+
+if Version == 1 then
+	ProtectedSections = convertV1(storage:get_string("ProtectedSections"))
+	Version = 2
+else
+	ProtectedSections = deserialize(storage:get_string("ProtectedSections"))
+end
 
 local function update_mod_storage()
 	local t = minetest.get_us_time()
 	minetest.log("action", "[sections] Store data...")
-	storage:set_string("ProtectedSections", minetest.serialize(ProtectedSections))
+	storage:set_string("ProtectedSections", serialize(ProtectedSections))
 	storage:set_string("Version", minetest.serialize(Version))
 	-- store data each hour
 	minetest.after(60*60, update_mod_storage)
@@ -29,11 +101,8 @@ local function update_mod_storage()
 	minetest.log("action", "[sections] Data stored. t="..t.."us")
 end
 
--- Convert table for adding player names
-for k,v in pairs(ProtectedSections) do
-	if v == true then
-		ProtectedSections[k] = {owner = "superminer", names = {}}
-	end
+-- Convert table for a 16x16x16 section size (former 48x48x48)
+if Version == 1 then
 end
 
 minetest.register_on_shutdown(function()
@@ -43,33 +112,12 @@ end)
 -- store data after one hour
 minetest.after(60*61, update_mod_storage)
 
-------------------------------------------------------------------
+-------------------------------------------------------------------------------
 -- Protection functions
--------------------------------------------------------------------
-local Offsets = {}
-
-for x = -48, 48, 48 do
-	for y = -48, 48, 48 do
-		for z = -48, 48, 48 do
-			table.insert(Offsets, {x = x, y = y, z = z})
-		end
-	end
-end
-
-local function get_surrounding(pos)
-	local i = 0
-    local n = table.getn(Offsets)
-    return function ()
-		i = i + 1
-		if i <= n then 
-			return vector.add(pos, Offsets[i])
-		end
-	end
-end
-
+-------------------------------------------------------------------------------
 local function find_surface(pos)
 	local pos1 = table.copy(pos)
-	for y = 1,48 do
+	for y = 1,16 do
 		local node = minetest.get_node(pos1)
 		if node.name ~= "air" then
 			pos1.y = pos1.y + 1
@@ -78,27 +126,26 @@ local function find_surface(pos)
 		pos1.y = pos1.y - 1
 	end
 end
-			
 
 local function place_markers(pos1, pos2)
 	local pos
 	
 	pos = find_surface({x = pos1.x, y = pos2.y, z = pos1.z})
-	minetest.add_node(pos, {name = "wool:yellow"})
-	pos.y = pos.y + 1
-	minetest.add_node(pos, {name = "wool:red"})
+	if pos then
+		minetest.add_node(pos, {name = "wool:yellow"})
+	end
 	pos = find_surface({x = pos2.x, y = pos2.y, z = pos2.z})
-	minetest.add_node(pos, {name = "wool:yellow"})
-	pos.y = pos.y + 1
-	minetest.add_node(pos, {name = "wool:red"})
+	if pos then
+		minetest.add_node(pos, {name = "wool:yellow"})
+	end
 	pos = find_surface({x = pos2.x, y = pos2.y, z = pos1.z})
-	minetest.add_node(pos, {name = "wool:yellow"})
-	pos.y = pos.y + 1
-	minetest.add_node(pos, {name = "wool:red"})
+	if pos then
+		minetest.add_node(pos, {name = "wool:yellow"})
+	end
 	pos = find_surface({x = pos1.x, y = pos2.y, z = pos2.z})
-	minetest.add_node(pos, {name = "wool:yellow"})
-	pos.y = pos.y + 1
-	minetest.add_node(pos, {name = "wool:red"})
+	if pos then
+		minetest.add_node(pos, {name = "wool:yellow"})
+	end
 end
 
 local function get_owner(num)
@@ -146,7 +193,14 @@ function minetest.is_protected(pos, name)
 	return old_is_protected(pos, name)
 end
 
+function sections.get_owner(pos)
+	local num = sections.section_num(pos)
+	return get_owner(num)
+end
 
+-------------------------------------------------------------------------------
+-- Chat commands
+-------------------------------------------------------------------------------
 minetest.register_chatcommand("section_info", {
 	params = "",
 	description = "Output section owner and additional player names.",
@@ -155,34 +209,12 @@ minetest.register_chatcommand("section_info", {
 		if player then
 			local pos = vector.round(player:get_pos())
 			local num = sections.section_num(pos)
-			local items = ProtectedSections[num]
-			if items then
-				local pos1, pos2 = sections.section_area(pos)
-				sections.mark_region(caller, pos1, pos2, num)
-				return true, num..": Your position is protected by: " .. get_names(num)
-			else
-				return true, num..": Your position is not protected."
-			end
-		end
-	end,
-})
-
-minetest.register_chatcommand("section_protect", {
-	params = "",
-	privs = {superminer = true},
-	description = "Protect current section for superminers.",
-	func = function(caller)
-		local player = minetest.get_player_by_name(caller)
-		if player then
-			local pos = vector.round(player:get_pos())
-			local num = sections.section_num(pos)
 			if ProtectedSections[num] then
-				return false, num..": Section already protected."
+				local pos1, pos2 = sections.section_area(pos)
+				sections.mark_region(caller, pos1, pos2, ProtectedSections[num].owner)
+				return true, "Your position is protected by: " .. get_names(num)
 			end
-			ProtectedSections[num] = {owner = "superminer", names = {}}
-			local pos1, pos2 = sections.section_area(pos)
-			sections.mark_region(caller, pos1, pos2, num)
-			return true, num..": Section protected."
+			return true, "Your position is not protected."
 		end
 	end,
 })
@@ -195,79 +227,93 @@ minetest.register_chatcommand("section_mark", {
 		local player = minetest.get_player_by_name(caller)
 		if player then
 			local pos = vector.round(player:get_pos())
-			local pos1, pos2 = sections.section_area(pos)
-			place_markers(pos1, pos2)
-			return true,"Markers placed."
+			local num = sections.section_num(pos)
+			if ProtectedSections[num] then
+				local pos1, pos2 = sections.section_area(pos)
+				place_markers(pos1, pos2)
+				return true, "Markers placed."
+			end
+			return true, "Your position is not protected."
 		end
 	end,
 })
 
-minetest.register_chatcommand("section_test27", {
-	params = "",
+minetest.register_chatcommand("section_protect", {
+	params = "<111/333/555>",
 	privs = {superminer = true},
-	description = "Test current section and all sections around it.",
-	func = function(caller)
+	description = "Protect current section(s) for superminers.",
+	func = function(caller, param)
 		local player = minetest.get_player_by_name(caller)
 		if player then
 			local pos = vector.round(player:get_pos())
-			local protections = {}
-			for pos2 in get_surrounding(pos) do
-				local num = sections.section_num(pos2)
-				if ProtectedSections[num] then
-					table.insert(protections, num)
+			local c1, c2 = 0, 0
+			for npos in sections.iter_sections(pos, param) do
+				local num = sections.section_num(npos)
+				if not ProtectedSections[num] then
+					ProtectedSections[num] = {owner = "superminer", names = {}}
+					c1 = c1 + 1
 				end
+				c2 = c2 + 1
+				local pos1, pos2 = sections.section_area(npos)
+				sections.mark_region(caller, pos1, pos2, ProtectedSections[num].owner)
+			end
+			return true, c1 .. "/" .. c2 .. " section(s) protected."
+		end
+	end,
+})
+
+minetest.register_chatcommand("section_test", {
+	params = "<111/333/555>",
+	privs = {superminer = true},
+	description = "Test current section(s) for protection.",
+	func = function(caller, param)
+		local player = minetest.get_player_by_name(caller)
+		if player then
+			local pos = vector.round(player:get_pos())
+			local c1, c2 = 0, 0
+			local protections = {}
+			for npos in sections.iter_sections(pos, param) do
+				local num = sections.section_num(npos)
+				if ProtectedSections[num] then
+					local s = P2S(vector.divide(vector.subtract(pos, npos), 16))
+					table.insert(protections, s)
+					c1 = c1 + 1
+					local pos1, pos2 = sections.section_area(npos)
+					sections.mark_region(caller, pos1, pos2, ProtectedSections[num].owner)
+				end
+				c2 = c2 + 1
 			end
 			if not next(protections) then
 				return true, "No section is protected."
 			else
-				return true, "Protected sections: " .. table.concat(protections, ", ")
+				return true, c1 .. "/" .. c2 .. " section(s) protected: " .. table.concat(protections, ", ")
 			end
-		end
-	end,
-})
-
-minetest.register_chatcommand("section_protect27", {
-	params = "",
-	privs = {superminer = true},
-	description = "Protect current section and all sections around it for superminers.",
-	func = function(caller)
-		local player = minetest.get_player_by_name(caller)
-		if player then
-			local pos = vector.round(player:get_pos())
-			for pos2 in get_surrounding(pos) do
-				local num = sections.section_num(pos2)
-				if not ProtectedSections[num] then
-					ProtectedSections[num] = {owner = "superminer", names = {}}
-				end
-			end
-			local pos1, _ = sections.section_area({x = pos.x - 48, y = pos.y - 48, z = pos.z - 48})
-			local _, pos2 = sections.section_area({x = pos.x + 48, y = pos.y + 48, z = pos.z + 48})
-			return true, "All sections from " .. P2S(pos1) .. " to " .. P2S(pos2) .. " are protected."
 		end
 	end,
 })
 
 minetest.register_chatcommand("section_change_owner", {
-	params = "<name>",
+	params = "<111/333/555> <name>",
 	description = "Change the owner of the current section.",
-	func = function(caller, param)
+	func = function(caller, params)
+		local _, _, size, name = string.find(params, "^(%d+)%s+(%S+)$")
 		local player = minetest.get_player_by_name(caller)
 		local sminer = minetest.check_player_privs(caller, "superminer")
-		local name = param:match("^(%S+)$")
-		if player and name then
+		if size and player and name then
 			local pos = vector.round(player:get_pos())
-			local num = sections.section_num(pos)
-			if not ProtectedSections[num] then
-				return false, num..": Section is not protected."
+			local c1, c2 = 0, 0
+			for npos in sections.iter_sections(pos, size) do
+				local num = sections.section_num(npos)
+				if ProtectedSections[num] and (sminer or is_owner(num, caller)) then
+					ProtectedSections[num].owner = name
+					ProtectedSections[num].names = {}
+					c1 = c1 + 1
+				end
+				c2 = c2 + 1
 			end
-			if sminer or is_owner(num, caller) then
-				ProtectedSections[num].owner = name
-				ProtectedSections[num].names = {}
-				return true, num..": Section owner changed."
-			end
-			return false, num..": You are not the owner of this section."
+			return true, "Owner changed in " .. c1 .. "/" .. c2 .. " section(s)."
 		else
-			return false, "Invalid player name."
+			return false, "Syntax error: section_change_owner <111/333/555> <name>"
 		end
 	end,
 })
@@ -283,16 +329,16 @@ minetest.register_chatcommand("section_add_player", {
 			local pos = vector.round(player:get_pos())
 			local num = sections.section_num(pos)
 			if not ProtectedSections[num] then
-				return false, num..": Section is not protected."
+				return false, "Section is not protected."
 			end
 			if sminer or is_owner(num, caller) then
 				if ProtectedSections[num].owner ~= name then
 					ProtectedSections[num].names[name] = true
-					return true, num..": Player " .. name .. " added."
+					return true, "Player " .. name .. " added."
 				end
 				return false, "You can't add the owner as player."
 			end
-			return false, num..": You are not the owner of this section."
+			return false, "You are not the owner of this section."
 		else
 			return false, "Invalid player name."
 		end
@@ -310,16 +356,16 @@ minetest.register_chatcommand("section_delete_player", {
 			local pos = vector.round(player:get_pos())
 			local num = sections.section_num(pos)
 			if not ProtectedSections[num] then
-				return false, num..": Section is not protected."
+				return false, "Section is not protected."
 			end
 			if sminer or is_owner(num, caller) then
 				if ProtectedSections[num].names[name] then
 					ProtectedSections[num].names[name] = nil
-					return true, num..": Player " .. name .. " removed."
+					return true, "Player " .. name .. " removed."
 				end
-				return false, num..": Can't delete player " .. name
+				return false, "Can't delete player " .. name
 			end
-			return false, num..": You are not the owner of this section."
+			return false, "You are not the owner of this section."
 		else
 			return false, "Invalid player name."
 		end
@@ -327,28 +373,24 @@ minetest.register_chatcommand("section_delete_player", {
 })
 
 minetest.register_chatcommand("section_delete", {
-	params = "",
-	description = "Delete current protection.",
-	func = function(caller)
+	params = "<111/333/555>",
+	description = "Delete current section(s) protection.",
+	func = function(caller, param)
 		local player = minetest.get_player_by_name(caller)
 		local sminer = minetest.check_player_privs(caller, "superminer")
 		if player then
 			local pos = vector.round(player:get_pos())
-			local num = sections.section_num(pos)
-			if not ProtectedSections[num] then
-				return false, num..": Section is not protected."
+			local c1, c2 = 0, 0
+			for npos in sections.iter_sections(pos, param) do
+				local num = sections.section_num(npos)
+				if ProtectedSections[num] and (sminer or is_owner(num, caller)) then
+					sections.unmark_region(caller)
+					ProtectedSections[num] = nil
+					c1 = c1 + 1
+				end
+				c2 = c2 + 1
 			end
-			if sminer or is_owner(num, caller) then
-				sections.unmark_region(caller)
-				ProtectedSections[num] = nil
-				return true, num..": Protection deleted."
-			end
-			return false, num..": You are not the owner of this section."
+			return true, c1 .. "/" .. c2 .. " section(s) deleted."
 		end
 	end,
 })
-
-function sections.get_owner(pos)
-	local num = sections.section_num(pos)
-	return get_owner(num)
-end
