@@ -198,6 +198,20 @@ function sections.get_owner(pos)
 	return get_owner(num)
 end
 
+function sections.protect_area(pos, caller, new_owner, names)
+	print("protect_area", caller, new_owner, dump(names))
+	new_owner = new_owner or "superminer"
+	names = names or {}
+	for npos in sections.iter_sections(pos, "111") do
+		local num = sections.section_num(npos)
+		if not ProtectedSections[num] then
+			ProtectedSections[num] = {owner = new_owner, names = names}
+		end
+		local pos1, pos2 = sections.section_area(npos)
+		sections.mark_region(caller, pos1, pos2, ProtectedSections[num].owner)
+	end
+end
+
 -------------------------------------------------------------------------------
 -- Chat commands
 -------------------------------------------------------------------------------
