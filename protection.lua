@@ -15,9 +15,9 @@ local P2S = function(pos) if pos then return minetest.pos_to_string(pos) end end
 -- Data base storage
 -------------------------------------------------------------------
 local function serialize_names(item)
-	local t = {item.owner or "superminer"}
+	local t = {tostring(item.owner) or "superminer"}
 	for k,v in pairs(item.names or {}) do
-		table.insert(t, v)
+		table.insert(t, tostring(v))
 	end
 	return table.concat(t, ",")
 end
@@ -199,7 +199,7 @@ function sections.get_owner(pos)
 end
 
 function sections.protect_area(pos, caller, new_owner, names)
-	print("protect_area", caller, new_owner, dump(names))
+	--print("protect_area", caller, new_owner, dump(names))
 	new_owner = new_owner or "superminer"
 	names = names or {}
 	for npos in sections.iter_sections(pos, "111") do
