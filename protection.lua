@@ -3,7 +3,7 @@
 	Sections
 	========
 
-	Copyright (C) 2020-2021 Joachim Stolberg
+	Copyright (C) 2020-2024 Joachim Stolberg
 
 	GPL v3
 	See LICENSE.txt for more information
@@ -14,103 +14,36 @@ local P2S = function(pos) if pos then return minetest.pos_to_string(pos) end end
 ------------------------------------------------------------------
 -- Data base storage
 -------------------------------------------------------------------
-local function serialize_names(item)
-	local t = {tostring(item.owner) or "superminer"}
-	for k,v in pairs(item.names or {}) do
-		table.insert(t, tostring(v))
-	end
-	return table.concat(t, ",")
-end
 
-local function deserialize_names(s)
-	local names = {}
-	local owner = nil
-	for n in s:gmatch("[^,]+") do
-		if not owner then
-			owner = n
-		else
-			names[#names + 1] = n
-		end
-	end
-	return {owner = owner, names = names}
-end
-
-local function deserialize(s)
+local function convertV2(s)
 	local tbl = {}
 	for line in s:gmatch("[^;]+") do
-		local _, _, k, names = string.find(line, "([^=]+)=([^=]+)")
-		tbl[k] = deserialize_names(names)
+		local _, _, k, _ = string.find(line, "([^=]+)=([^=]+)")
+		tbl[k] = {owner = "superminer", names = {}}
 	end
 	return tbl
 end
 
-local function serialize(data)
-	local tbl = {}
-	for k,v in pairs(data) do
-		tbl[#tbl+1] = k.."="..serialize_names(v)
-	end
-	return table.concat(tbl, ";")
-end
-
-local function convertV1(s)
-	local function old_section_pos(num)
-		local _, _, z, zpos, x, xpos, y, ypos = string.find(num, "(%u)(%d+)(%u)(%d+)(%u)(%d+)")
-		xpos = ((xpos * 48) - 8) * (x == "E" and -1 or 1)
-		ypos = ((ypos * 48) - 8) * (y == "D" and -1 or 1)
-		zpos = ((zpos * 48) - 8) * (z == "S" and -1 or 1)
-		return {x = xpos, y = ypos, z = zpos}
-	end
-
-	local tbl1 = minetest.deserialize(s) or {}
-	local tbl2 = {}
-	
-	for k,v in pairs(tbl1) do
-		local pos = old_section_pos(k)
-		for x = 0, 32, 16 do
-		for y = 0, 32, 16 do
-		for z = 0, 32, 16 do
-			local num = sections.section_num({x = pos.x + x, y = pos.y + y, z = pos.z + z})
-			tbl2[num] = v
-		end
-		end
-		end
-	end
-	
-	return tbl2
-end
-
 local storage = minetest.get_mod_storage()
-local Version = minetest.deserialize(storage:get_string("Version")) or 2
+local Version = minetest.deserialize(storage:get_string("Version")) or 3
 local ProtectedSections = {}
 
-if Version == 1 then
-	ProtectedSections = convertV1(storage:get_string("ProtectedSections"))
-	Version = 2
-else
-	ProtectedSections = deserialize(storage:get_string("ProtectedSections"))
-end
-
 local function update_mod_storage()
-	local t = minetest.get_us_time()
-	minetest.log("action", "[sections] Store data...")
-	storage:set_string("ProtectedSections", serialize(ProtectedSections))
+	storage:set_string("ProtectedSections", minetest.serialize(ProtectedSections))
 	storage:set_string("Version", minetest.serialize(Version))
-	-- store data each hour
-	minetest.after(60*60, update_mod_storage)
-	t = minetest.get_us_time() - t
-	minetest.log("action", "[sections] Data stored. t="..t.."us")
 end
 
--- Convert table for a 16x16x16 section size (former 48x48x48)
-if Version == 1 then
+if Version == 2 then
+	ProtectedSections = convertV2(storage:get_string("ProtectedSections"))
+	Version = 3
+	update_mod_storage()
+else
+	ProtectedSections = minetest.deserialize(storage:get_string("ProtectedSections"))
 end
 
 minetest.register_on_shutdown(function()
 	update_mod_storage()
 end)
-
--- store data after one hour
-minetest.after(60*61, update_mod_storage)
 
 -------------------------------------------------------------------------------
 -- Protection functions
@@ -161,12 +94,12 @@ local function is_owner(num, name)
 end
 
 local function get_names(num)
-	local t = {}
-	local owner = (ProtectedSections[num].owner or "superminer") .. " ("
+	local owner = ProtectedSections[num].owner or "superminer"
+	local tbl = {owner}
 	for k,v in pairs(ProtectedSections[num].names or {}) do
-		table.insert(t, k)
+		table.insert(tbl, k)
 	end
-	return owner .. table.concat(t, ", ") .. ")"
+	return table.concat(tbl, ", ")
 end
 
 local function has_area_rights(num, name)
@@ -198,8 +131,8 @@ function sections.get_owner(pos)
 	return get_owner(num)
 end
 
+-- Used by mytools
 function sections.protect_area(pos, caller, new_owner, names)
-	--print("protect_area", caller, new_owner, dump(names))
 	new_owner = new_owner or "superminer"
 	names = names or {}
 	for npos in sections.iter_sections(pos, "111") do
@@ -210,6 +143,7 @@ function sections.protect_area(pos, caller, new_owner, names)
 		local pos1, pos2 = sections.section_area(npos)
 		sections.mark_region(caller, pos1, pos2, ProtectedSections[num].owner)
 	end
+	update_mod_storage()
 end
 
 -------------------------------------------------------------------------------
@@ -271,6 +205,7 @@ minetest.register_chatcommand("section_protect", {
 				local pos1, pos2 = sections.section_area(npos)
 				sections.mark_region(caller, pos1, pos2, ProtectedSections[num].owner)
 			end
+			update_mod_storage()
 			return true, c1 .. "/" .. c2 .. " section(s) protected."
 		end
 	end,
@@ -325,6 +260,7 @@ minetest.register_chatcommand("section_change_owner", {
 				end
 				c2 = c2 + 1
 			end
+			update_mod_storage()
 			return true, "Owner changed in " .. c1 .. "/" .. c2 .. " section(s)."
 		else
 			return false, "Syntax error: section_change_owner <111/333/555> <name>"
@@ -348,6 +284,7 @@ minetest.register_chatcommand("section_add_player", {
 			if sminer or is_owner(num, caller) then
 				if ProtectedSections[num].owner ~= name then
 					ProtectedSections[num].names[name] = true
+					update_mod_storage()
 					return true, "Player " .. name .. " added."
 				end
 				return false, "You can't add the owner as player."
@@ -375,6 +312,7 @@ minetest.register_chatcommand("section_delete_player", {
 			if sminer or is_owner(num, caller) then
 				if ProtectedSections[num].names[name] then
 					ProtectedSections[num].names[name] = nil
+					update_mod_storage()
 					return true, "Player " .. name .. " removed."
 				end
 				return false, "Can't delete player " .. name
@@ -404,6 +342,7 @@ minetest.register_chatcommand("section_delete", {
 				end
 				c2 = c2 + 1
 			end
+			update_mod_storage()
 			return true, c1 .. "/" .. c2 .. " section(s) deleted."
 		end
 	end,

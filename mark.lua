@@ -53,7 +53,7 @@ function sections.mark_region(name, pos1, pos2, infotext)
 				visual_size={x=sizez * 2, y=sizey * 2},
 				collisionbox = {0,0,0, 0,0,0},
 			})
-			marker:setyaw(math.pi / 2)
+			marker:set_yaw(math.pi / 2)
 			marker:get_luaentity().player_name = name
 			table.insert(markers, marker)
 		end
