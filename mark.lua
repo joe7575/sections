@@ -11,7 +11,7 @@
 
 local marker_region = {}
 
-function sections.unmark_region(name)
+function sections.unmark_regions(name)
 	if marker_region[name] ~= nil then --marker already exists
 		--wip: make the area stay loaded somehow
 		for _, entity in ipairs(marker_region[name]) do

@@ -3,15 +3,24 @@
 	Sections
 	========
 
-	Copyright (C) 2020-2021 Joachim Stolberg
+	Copyright (C) 2020-2024 Joachim Stolberg
 
 	GPL v3
 	See LICENSE.txt for more information
 ]]--
 local WPATH = minetest.get_worldpath()
 
+local Offsets222 = {}
 local Offsets333 = {}
 local Offsets555 = {}
+
+for x = -8, 8, 8 do
+	for y = -8, 8, 8 do
+		for z = -8, 8, 8 do
+			table.insert(Offsets222, {x = x, y = y, z = z})
+		end
+	end
+end
 
 for x = -16, 16, 16 do
 	for y = -16, 16, 16 do
@@ -29,9 +38,18 @@ for x = -32, 32, 16 do
 	end
 end
 
-function sections.iter_sections(pos, size)
+function sections.iter_sections(pos, dimension)
 	local i = 0
-	if size == "333" then
+	if dimension == "2" then
+		-- 2x2x2 = 8 section
+		return function()
+			i = i + 1
+			local offs = Offsets222[i]
+			if offs then
+				return {x = pos.x + offs.x, y = pos.y + offs.y, z = pos.z + offs.z}
+			end
+		end
+	elseif dimension == "3" then
 		-- 3x3x3 = 27 section
 		return function()
 			i = i + 1
@@ -40,7 +58,7 @@ function sections.iter_sections(pos, size)
 				return {x = pos.x + offs.x, y = pos.y + offs.y, z = pos.z + offs.z}
 			end
 		end
-	elseif size == "555" then
+	elseif dimension == "5" then
 		-- 5x5x5 = 125 sections
 		return function()
 			i = i + 1
