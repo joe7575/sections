@@ -1,12 +1,19 @@
 --[[
+  Sections is a landscape protection mod for the game Minetest.
+  Copyright (C) 2023-2024 Joachim Stolberg <iauit@gmx.de>
 
-	Sections
-	========
+  This program is free software: you can redistribute it and/or modify
+  it under the terms of the GNU Affero General Public License as published by
+  the Free Software Foundation, either version 3 of the License, or
+  (at your option) any later version.
 
-	Copyright (C) 2020-2024 Joachim Stolberg
+  This program is distributed in the hope that it will be useful,
+  but WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  GNU Affero General Public License for more details.
 
-	GPL v3
-	See LICENSE.txt for more information
+  You should have received a copy of the GNU Affero General Public License
+  along with this program.  If not, see <https://www.gnu.org/licenses/>.
 ]]--
 
 local P2S = function(pos) if pos then return minetest.pos_to_string(pos) end end
@@ -48,39 +55,6 @@ end)
 -------------------------------------------------------------------------------
 -- Protection functions
 -------------------------------------------------------------------------------
-local function find_surface(pos)
-	local pos1 = table.copy(pos)
-	for _ = 1,50 do
-		local node = minetest.get_node(pos1)
-		if node.name ~= "air" then
-			pos1.y = pos1.y + 1
-			return pos1
-		end
-		pos1.y = pos1.y - 1
-	end
-end
-
-local function place_markers(pos1, pos2)
-	local pos
-	
-	pos = find_surface({x = pos1.x, y = pos2.y, z = pos1.z})
-	if pos then
-		minetest.add_node(pos, {name = "wool:yellow"})
-	end
-	pos = find_surface({x = pos2.x, y = pos2.y, z = pos2.z})
-	if pos then
-		minetest.add_node(pos, {name = "wool:yellow"})
-	end
-	pos = find_surface({x = pos2.x, y = pos2.y, z = pos1.z})
-	if pos then
-		minetest.add_node(pos, {name = "wool:yellow"})
-	end
-	pos = find_surface({x = pos1.x, y = pos2.y, z = pos2.z})
-	if pos then
-		minetest.add_node(pos, {name = "wool:yellow"})
-	end
-end
-
 local function get_owner(num)
 	local items = ProtectedSections[num]
 	if not items then return end
@@ -110,7 +84,7 @@ local function has_area_rights(num, name)
 	end
 	return ProtectedSections[num].names[name]
 end
-	
+
 local old_is_protected = minetest.is_protected
 
 -- check for protected area, return true if protected
@@ -140,57 +114,41 @@ function sections.protect_area(pos, caller, new_owner, names)
 		if not ProtectedSections[num] then
 			ProtectedSections[num] = {owner = new_owner, names = names}
 		end
-		local pos1, pos2 = sections.section_area(npos)
+		local pos1, pos2 = sections.section_corners(npos)
 		sections.mark_region(caller, pos1, pos2, ProtectedSections[num].owner)
 	end
 	update_mod_storage()
 end
 
--- Iterator over all sections in 'dimension'
---     @dimension - number of sections: <111/222/333/555>
---     @func(npos, caller, num, param)
---         @npos   - new position within section
---         @caller - chatcommand caller name
---         @num    - section number like 'S14W50U1'
---         @param  - further parameter
---         function returns true for success
---     @caller - chatcommand caller name
---     @param  - additional chatcommand parameter
-local function for_all_positions(dimension, func, caller, param)
-	local cnt = 0
-	local visited_sections = {} 
-	local player = minetest.get_player_by_name(caller)
-	if player then
-		local pos = vector.round(player:get_pos())
-		for npos in sections.iter_sections(pos, dimension) do
-			local num = sections.section_num(npos)
-			if not visited_sections[num] then
-				if func(npos, caller, num, param) then
-					cnt = cnt + 1
-				end
-				visited_sections[num] = true
-			end
-		end
-	end
-	if cnt == 1 then
-		return cnt, " ", "is "
-	else
-		return cnt, "s ", "are "
-	end
-end
-
 -------------------------------------------------------------------------------
 -- Chat commands
 -------------------------------------------------------------------------------
+minetest.register_chatcommand("section", {
+	params = "",
+	description = "Display the section number on the HUD",
+	privs = {interact = true},
+	func = function(name)
+		local player = minetest.get_player_by_name(name)
+		if player then
+			local pos = vector.round(player:get_pos())
+			local number = sections.section_num(pos)
+			local pos1, pos2 = sections.section_corners(pos)
+			sections.mark_region(name, pos1, pos2, number)
+			return true, "Section number: "..number
+		end
+	end,
+})
+
 minetest.register_chatcommand("section_info", {
 	params = "<1/2/3/5> as dimension",
-	description = "Output owner and additional player names for all sections",
+	description = "Output owner and additional player names for the section(s) around you",
+	privs = {interact = true},
 	func = function(caller, dimension)
 		sections.unmark_regions(caller) 
-		local cnt, plural, verb = for_all_positions(dimension, 
+		local cnt, plural, verb = sections.for_all_positions(dimension, 
 			function(pos, caller, num, param)
 				if ProtectedSections[num] then
-					local pos1, pos2 = sections.section_area(pos)
+					local pos1, pos2 = sections.section_corners(pos)
 					sections.mark_region(caller, pos1, pos2, ProtectedSections[num].owner)
 					local text = "Section " .. num .. " is protected by: " .. get_names(num)
 					minetest.chat_send_player(caller, text)
@@ -198,21 +156,21 @@ minetest.register_chatcommand("section_info", {
 				end
 			end, 
 		caller)
-		return true, cnt .. " position" .. plural .. verb .. "protected."
+		return true, cnt .. " section" .. plural .. verb .. "protected"
 	end,
 })
 
 minetest.register_chatcommand("section_mark", {
 	params = "<1/2/3/5> as dimension",
 	privs = {[sections.admin_privs] = true},
-	description = "Mark the sections area with wool blocks",
+	description = "Mark the section area with wool blocks",
 	func = function(caller, dimension)
 		sections.unmark_regions(caller) 
 		local minpos, maxpos
-		for_all_positions(dimension, 
+		sections.for_all_positions(dimension, 
 			function(pos, caller, num, param)
 				if ProtectedSections[num] then
-					local pos1, pos2 = sections.section_area(pos)
+					local pos1, pos2 = sections.section_corners(pos)
 					minpos = minpos or pos1
 					maxpos = pos2
 					return true
@@ -220,8 +178,8 @@ minetest.register_chatcommand("section_mark", {
 			end,
 		caller)
 		if minpos and maxpos then
-			place_markers(minpos, maxpos)
-			return true, "Markers placed."
+			sections.place_markers(minpos, maxpos)
+			return true, "Markers placed"
 		end
 		return false, "Error: No markers placed!"
 	end,
@@ -230,38 +188,39 @@ minetest.register_chatcommand("section_mark", {
 minetest.register_chatcommand("section_protect", {
 	params = "<1/2/3/5> as dimension",
 	privs = {[sections.admin_privs] = true},
-	description = "Protect up to 125 sections around you",
+	description = "Protect the section(s) around you",
 	func = function(caller, dimension)
 		sections.unmark_regions(caller) 
-		local cnt, plural, _ = for_all_positions(dimension, 
+		local cnt, plural, _ = sections.for_all_positions(dimension, 
 			function(pos, caller, num, param)
 				if not ProtectedSections[num] then
 					ProtectedSections[num] = {owner = caller, names = {}}
-					local pos1, pos2 = sections.section_area(pos)
+					local pos1, pos2 = sections.section_corners(pos)
 					sections.mark_region(caller, pos1, pos2, ProtectedSections[num].owner)
 					return true
 				end
 			end,
 		caller)
 		update_mod_storage()
-		return true, cnt .. " section" .. plural .. "protected."
+		return true, cnt .. " section" .. plural .. " protected"
 	end,
 })
 
 minetest.register_chatcommand("section_change_owner", {
 	params = "<name> <1/2/3/5>",
-	description = "Change the owner of up to 125 sections around you",
+	description = "Change the owner of the section(s) around you",
+	privs = {interact = true},
 	func = function(caller, params)
 		sections.unmark_regions(caller) 
 		local _, _, name, dimension = string.find(params, "^(%S+)%s+(%d+)$")
 		local is_admin = minetest.check_player_privs(caller, sections.admin_privs)
 		if dimension and name then
-			local cnt, plural, _ = for_all_positions(dimension, 
+			local cnt, plural, _ = sections.for_all_positions(dimension, 
 				function(pos, caller, num, name)
 					if ProtectedSections[num] and (is_admin or is_owner(num, caller)) then
 						ProtectedSections[num].owner = name
 						ProtectedSections[num].names = {}
-						local pos1, pos2 = sections.section_area(pos)
+						local pos1, pos2 = sections.section_corners(pos)
 						sections.mark_region(caller, pos1, pos2, name)
 						return true
 					end
@@ -277,12 +236,13 @@ minetest.register_chatcommand("section_change_owner", {
 
 minetest.register_chatcommand("section_add_player", {
 	params = "<name> <1/2/3/5>",
-	description = "Add an extra player to the sections around you",
+	description = "Add an extra player to the section(s) around you",
+	privs = {interact = true},
 	func = function(caller, params)
 		local is_admin = minetest.check_player_privs(caller, sections.admin_privs)
 		local _, _, name, dimension = string.find(params, "^(%S+)%s+(%d+)$")
 		if dimension and name then
-			local cnt, plural, _ = for_all_positions(dimension, 
+			local cnt, plural, _ = sections.for_all_positions(dimension, 
 				function(pos, caller, num, name)
 					if is_admin or is_owner(num, caller) then
 						if ProtectedSections[num].owner ~= name then
@@ -306,53 +266,52 @@ minetest.register_chatcommand("section_add_player", {
 })
 
 minetest.register_chatcommand("section_delete_player", {
-	params = "<name>",
-	description = "Delete one addition player from the current section.",
-	func = function(caller, param)
-		local player = minetest.get_player_by_name(caller)
+	params = "<name> <1/2/3/5>",
+	description = "Delete an extra player at the section(s) around you",
+	privs = {interact = true},
+	func = function(caller, params)
 		local is_admin = minetest.check_player_privs(caller, sections.admin_privs)
-		local name = param:match("^(%S+)$")
-		if player and name then
-			local pos = vector.round(player:get_pos())
-			local num = sections.section_num(pos)
-			if not ProtectedSections[num] then
-				return false, "Section is not protected."
-			end
-			if is_admin or is_owner(num, caller) then
-				if ProtectedSections[num].names[name] then
-					ProtectedSections[num].names[name] = nil
-					update_mod_storage()
-					return true, "Player " .. name .. " removed."
-				end
-				return false, "Can't delete player " .. name
-			end
-			return false, "You are not the owner of this section."
+		local _, _, name, dimension = string.find(params, "^(%S+)%s+(%d+)$")
+		if dimension and name then
+			local cnt, plural, _ = sections.for_all_positions(dimension, 
+				function(pos, caller, num, name)
+					if is_admin or is_owner(num, caller) then
+						if ProtectedSections[num].owner ~= name then
+							ProtectedSections[num].names[name] = nil
+							local text = "Name '" .. name .. "' deleted at section " .. num
+							minetest.chat_send_player(caller, text)
+							return true
+						end
+					else
+						local text = "You are not the owner of section " .. num
+						minetest.chat_send_player(caller, text)
+					end
+				end,
+			caller, name)
+			update_mod_storage()
+			return true, "Name '" .. name .. "' deleted " .. cnt .. " section" .. plural
 		else
-			return false, "Invalid player name."
+			return false, "Syntax error: section_delete_player <name> <1/2/3/5>"
 		end
 	end,
 })
 
 minetest.register_chatcommand("section_delete", {
-	params = "<111/333/555>",
-	description = "Delete current section(s) protection.",
-	func = function(caller, param)
-		local player = minetest.get_player_by_name(caller)
+	params = "<1/2/3/5>",
+	description = "Delete the section(s) around you",
+	privs = {interact = true},
+	func = function(caller, dimension)
+		sections.unmark_regions(caller)
 		local is_admin = minetest.check_player_privs(caller, sections.admin_privs)
-		if player then
-			local pos = vector.round(player:get_pos())
-			local c1, c2 = 0, 0
-			for npos in sections.iter_sections(pos, param) do
-				local num = sections.section_num(npos)
+		local cnt, plural, _ = sections.for_all_positions(dimension, 
+			function(pos, caller, num, name)
 				if ProtectedSections[num] and (is_admin or is_owner(num, caller)) then
-					sections.unmark_region(caller)
 					ProtectedSections[num] = nil
-					c1 = c1 + 1
+					return true
 				end
-				c2 = c2 + 1
-			end
-			update_mod_storage()
-			return true, c1 .. "/" .. c2 .. " section(s) deleted."
-		end
+			end,
+		caller)
+		update_mod_storage()
+		return true, cnt .. " section" .. plural .. "deleted"
 	end,
 })

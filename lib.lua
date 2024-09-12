@@ -1,15 +1,24 @@
 --[[
+  Sections is a landscape protection mod for the game Minetest.
+  Copyright (C) 2023-2024 Joachim Stolberg <iauit@gmx.de>
 
-	Sections
-	========
+  This program is free software: you can redistribute it and/or modify
+  it under the terms of the GNU Affero General Public License as published by
+  the Free Software Foundation, either version 3 of the License, or
+  (at your option) any later version.
 
-	Copyright (C) 2020-2024 Joachim Stolberg
+  This program is distributed in the hope that it will be useful,
+  but WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  GNU Affero General Public License for more details.
 
-	GPL v3
-	See LICENSE.txt for more information
+  You should have received a copy of the GNU Affero General Public License
+  along with this program.  If not, see <https://www.gnu.org/licenses/>.
 ]]--
-local WPATH = minetest.get_worldpath()
 
+-------------------------------------------------------------------------------
+-- Local helper functions
+-------------------------------------------------------------------------------
 local Offsets222 = {}
 local Offsets333 = {}
 local Offsets555 = {}
@@ -38,7 +47,19 @@ for x = -32, 32, 16 do
 	end
 end
 
-function sections.iter_sections(pos, dimension)
+local function find_surface(pos)
+	local pos1 = table.copy(pos)
+	for _ = 1,50 do
+		local node = minetest.get_node(pos1)
+		if node.name ~= "air" then
+			pos1.y = pos1.y + 1
+			return pos1
+		end
+		pos1.y = pos1.y - 1
+	end
+end
+
+local function iter_sections(pos, dimension)
 	local i = 0
 	if dimension == "2" then
 		-- 2x2x2 = 8 section
@@ -78,6 +99,9 @@ function sections.iter_sections(pos, dimension)
 	end
 end
 
+-------------------------------------------------------------------------------
+-- API functions
+-------------------------------------------------------------------------------
 function sections.section_num(pos)
 	local xpos = math.floor((pos.x + 8) / 16)
 	local ypos = math.floor((pos.y + 8) / 16)
@@ -100,15 +124,9 @@ function sections.section_num(pos)
 	return zpos..xpos..ypos
 end
 
-function sections.section_pos(num)
-	local _, _, z, zpos, x, xpos, y, ypos = string.find(num, "(%u)(%d+)(%u)(%d+)(%u)(%d+)")
-	xpos = ((xpos * 16) - 8) * (x == "E" and -1 or 1)
-	ypos = ((ypos * 16) - 8) * (y == "D" and -1 or 1)
-	zpos = ((zpos * 16) - 8) * (z == "S" and -1 or 1)
-	return {x = xpos, y = ypos, z = zpos}
-end
-
-function sections.section_area(pos)
+-- Returns the two corner positions of the section with the smallest 
+-- and largest coordinates.
+function sections.section_corners(pos)
 	local xpos = (math.floor((pos.x + 8) / 16) * 16) - 8
 	local ypos = (math.floor((pos.y + 8) / 16) * 16) - 8
 	local zpos = (math.floor((pos.z + 8) / 16) * 16) - 8
@@ -117,73 +135,57 @@ function sections.section_area(pos)
 	return pos1, pos2
 end
 
-local section_num = sections.section_num
-
-function sections.pattern_escape(text)
-	if text ~= nil then
-		text = string.gsub(text, "%(", "%%(")
-		text = string.gsub(text, "%)", "%%)")
-		text = string.gsub(text, "%.", "%%.")
-		text = string.gsub(text, "%*", "%%*")
-		text = string.gsub(text, "%+", "%%+")
-		text = string.gsub(text, "%-", "%%-")
-		text = string.gsub(text, "%[", "%%[")
-		text = string.gsub(text, "%?", "%%?")
+-- Place wool blocks in all 4 corners of the section area
+function sections.place_markers(pos1, pos2)
+	local pos
+	
+	pos = find_surface({x = pos1.x, y = pos2.y, z = pos1.z})
+	if pos then
+		minetest.add_node(pos, {name = "wool:yellow"})
 	end
-	return text
+	pos = find_surface({x = pos2.x, y = pos2.y, z = pos2.z})
+	if pos then
+		minetest.add_node(pos, {name = "wool:yellow"})
+	end
+	pos = find_surface({x = pos2.x, y = pos2.y, z = pos1.z})
+	if pos then
+		minetest.add_node(pos, {name = "wool:yellow"})
+	end
+	pos = find_surface({x = pos1.x, y = pos2.y, z = pos2.z})
+	if pos then
+		minetest.add_node(pos, {name = "wool:yellow"})
+	end
 end
 
-local function file_exists(name)
-   local f = io.open(name, "r")
-   if f ~= nil then io.close(f) return true else return false end
-end
-
-function sections.logging(pos, name, action, item)
-	local day = os.date("%w")
-	local fname = WPATH..DIR_DELIM.."player_actions_"..day..".txt"
-	local f = io.open(fname, "a+")
-	local num = section_num(pos)
-	local spos = minetest.pos_to_string(pos)
-	f:write (num..": "..name.." "..action.." '"..item.name.."' on "..spos.." at '"..os.date(), "'\n")
-	f:close()
-end
-
--- see https://www.lua.org/pil/21.2.1.html
-function sections.grep(pos, name)
-	local t = minetest.get_us_time()
-	local tbl = {" ########### Start of Query ############"}
-	local num = section_num(pos)
-	local fname = WPATH..DIR_DELIM.."action.txt"
-	local BUFSIZE = 2^13     -- 8K
-	name = sections.pattern_escape(name)
-	if file_exists(fname) then
-		local f = io.input(fname)
-		while true do
-			local lines, rest = f:read(BUFSIZE, "*line")
-			if not lines then break end
-			if rest then lines = lines .. rest .. '\n' end
-			for _,line in ipairs(string.split(lines, "\n")) do
-				local parts = string.split(line, " ", false, 1)
-				if parts[1] == num then
-					if name == "" or string.find(parts[2], name) then
-						table.insert(tbl, parts[2])
-						if #tbl >= 100 then
-							table.insert(tbl, "***************** max (100) reached *******************")
-							return tbl
-						end
-					end
+-- Iterator over all sections in 'dimension'
+--     @dimension - number of sections: <111/222/333/555>
+--     @func(npos, caller, num, param)
+--         @npos   - new position within section
+--         @caller - chatcommand caller name
+--         @num    - section number like 'S14W50U1'
+--         @param  - further parameter
+--         function returns true for success
+--     @caller - chatcommand caller name
+--     @param  - additional chatcommand parameter
+function sections.for_all_positions(dimension, func, caller, param)
+	local cnt = 0
+	local visited_sections = {} 
+	local player = minetest.get_player_by_name(caller)
+	if player then
+		local pos = vector.round(player:get_pos())
+		for npos in iter_sections(pos, dimension) do
+			local num = sections.section_num(npos)
+			if not visited_sections[num] then
+				if func(npos, caller, num, param) then
+					cnt = cnt + 1
 				end
+				visited_sections[num] = true
 			end
 		end
 	end
-	t = minetest.get_us_time() - t
-	t = string.format("%s", t/1000000)
-	table.insert(tbl, (#tbl-1).." matches found in "..t.." seconds")
-	return tbl
+	if cnt == 1 then
+		return cnt, " ", "is "
+	else
+		return cnt, "s ", "are "
+	end
 end
-
-minetest.after(1, function()
-	local day = os.date("%w")
-	local fname = WPATH..DIR_DELIM.."player_actions_"..day..".txt"
-	os.remove(fname)
-end)

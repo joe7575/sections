@@ -1,22 +1,24 @@
 --[[
+  Sections is a landscape protection mod for the game Minetest.
+  Copyright (C) 2023-2024 Joachim Stolberg <iauit@gmx.de>
 
-	Sections
-	========
+  This program is free software: you can redistribute it and/or modify
+  it under the terms of the GNU Affero General Public License as published by
+  the Free Software Foundation, either version 3 of the License, or
+  (at your option) any later version.
 
-	Copyright (C) 2020-2024 Joachim Stolberg
+  This program is distributed in the hope that it will be useful,
+  but WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  GNU Affero General Public License for more details.
 
-	GPL v3
-	See LICENSE.txt for more information
+  You should have received a copy of the GNU Affero General Public License
+  along with this program.  If not, see <https://www.gnu.org/licenses/>.
 ]]--
-
--- Sections (16x16x16 blocks) used for protection areas, statistics and more
 
 sections = {}
 sections.admin_privs = minetest.settings:get("sections_admin_privs")
 
 dofile(minetest.get_modpath("sections") .. "/mark.lua")
 dofile(minetest.get_modpath("sections") .. "/lib.lua")
-dofile(minetest.get_modpath("sections") .. "/statistics.lua")
 dofile(minetest.get_modpath("sections") .. "/protection.lua")
-
-print("[sections] Mod loaded")

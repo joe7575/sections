@@ -1,12 +1,19 @@
 --[[
+  Sections is a landscape protection mod for the game Minetest.
+  Copyright (C) 2023-2024 Joachim Stolberg <iauit@gmx.de>
 
-	Sections
-	========
+  This program is free software: you can redistribute it and/or modify
+  it under the terms of the GNU Affero General Public License as published by
+  the Free Software Foundation, either version 3 of the License, or
+  (at your option) any later version.
 
-	Copyright (C) 2020 Joachim Stolberg
+  This program is distributed in the hope that it will be useful,
+  but WITHOUT ANY WARRANTY; without even the implied warranty of
+  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+  GNU Affero General Public License for more details.
 
-	GPL v3
-	See LICENSE.txt for more information
+  You should have received a copy of the GNU Affero General Public License
+  along with this program.  If not, see <https://www.gnu.org/licenses/>.
 ]]--
 
 local marker_region = {}
@@ -21,11 +28,8 @@ function sections.unmark_regions(name)
 	end
 end
 
--- name ist der Name des Spielers
+-- Name is the player/caller name
 function sections.mark_region(name, pos1, pos2, infotext)
-
-	--sections.unmark_region(name)
-	
 	local sizex, sizey, sizez = (1 + pos2.x - pos1.x) / 2, (1 + pos2.y - pos1.y) / 2, (1 + pos2.z - pos1.z) / 2
 	local markers = {}
 
