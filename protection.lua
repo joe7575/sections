@@ -123,22 +123,6 @@ end
 -------------------------------------------------------------------------------
 -- Chat commands
 -------------------------------------------------------------------------------
-minetest.register_chatcommand("section", {
-	params = "",
-	description = "Display the section number on the HUD",
-	privs = {interact = true},
-	func = function(name)
-		local player = minetest.get_player_by_name(name)
-		if player then
-			local pos = vector.round(player:get_pos())
-			local number = sections.section_num(pos)
-			local pos1, pos2 = sections.section_corners(pos)
-			sections.mark_region(name, pos1, pos2, number)
-			return true, "Section number: "..number
-		end
-	end,
-})
-
 minetest.register_chatcommand("section_info", {
 	params = "<1/2/3/5> as dimension",
 	description = "Output owner and additional player names for the section(s) around you",
@@ -156,7 +140,12 @@ minetest.register_chatcommand("section_info", {
 				end
 			end, 
 		caller)
-		return true, cnt .. " section" .. plural .. verb .. "protected"
+		if cnt > 0 then
+			return true, cnt .. "protected section" .. plural
+		else
+			local number = sections.get_current_section(caller)
+			return true, "Section "..number .. " is not protected"
+
 	end,
 })
 

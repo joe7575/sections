@@ -189,3 +189,14 @@ function sections.for_all_positions(dimension, func, caller, param)
 		return cnt, "s ", "are "
 	end
 end
+
+function sections.get_current_section(caller)
+	local player = minetest.get_player_by_name(caller)
+	if player then
+		local pos = vector.round(player:get_pos())
+		local number = sections.section_num(pos)
+		local pos1, pos2 = sections.section_corners(pos)
+		sections.mark_region(caller, pos1, pos2, number)
+		return number
+	end
+end
