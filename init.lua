@@ -18,7 +18,11 @@
 
 sections = {}
 sections.admin_privs = minetest.settings:get("sections_admin_privs")
+if sections.admin_privs == "sections" then
+	minetest.register_privilege("sections")
+end
 
 dofile(minetest.get_modpath("sections") .. "/mark.lua")
 dofile(minetest.get_modpath("sections") .. "/lib.lua")
 dofile(minetest.get_modpath("sections") .. "/protection.lua")
+dofile(minetest.get_modpath("sections") .. "/tool.lua")

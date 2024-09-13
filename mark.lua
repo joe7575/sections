@@ -18,9 +18,8 @@
 
 local marker_region = {}
 
-function sections.unmark_regions(name)
+function sections.unmark_sections(name)
 	if marker_region[name] ~= nil then --marker already exists
-		--wip: make the area stay loaded somehow
 		for _, entity in ipairs(marker_region[name]) do
 			entity:remove()
 		end
@@ -29,36 +28,33 @@ function sections.unmark_regions(name)
 end
 
 -- Name is the player/caller name
-function sections.mark_region(name, pos1, pos2, infotext)
+function sections.mark_section(name, pos1, pos2, infotext)
 	local sizex, sizey, sizez = (1 + pos2.x - pos1.x) / 2, (1 + pos2.y - pos1.y) / 2, (1 + pos2.z - pos1.z) / 2
-	local markers = {}
+	local markers = marker_region[name] or {}
 
 	--XY plane markers
 	for _, z in ipairs({pos1.z - 0.5, pos2.z + 0.5}) do
-		local marker = minetest.add_entity({x=pos1.x + sizex - 0.5, y=pos1.y + sizey - 0.5, z=z}, "sections:region_cube")
+		local marker = minetest.add_entity({x = pos1.x + sizex - 0.5, y = pos1.y + sizey - 0.5, z = z}, "sections:mark_section")
 		if marker ~= nil then
 			marker:set_properties({
-				visual_size={x=sizex * 2, y=sizey * 2},
+				visual_size={x = sizex * 2, y = sizey * 2},
 				collisionbox = {0,0,0, 0,0,0},
 			})
-			if infotext then
-				marker:set_nametag_attributes({text = infotext})
-			end
-			marker:get_luaentity().player_name = name
+			marker:set_nametag_attributes({text = infotext})
 			table.insert(markers, marker)
 		end
 	end
 
 	--YZ plane markers
 	for _, x in ipairs({pos1.x - 0.5, pos2.x + 0.5}) do
-		local marker = minetest.add_entity({x=x, y=pos1.y + sizey - 0.5, z=pos1.z + sizez - 0.5}, "sections:region_cube")
+		local marker = minetest.add_entity({x = x, y = pos1.y + sizey - 0.5, z = pos1.z + sizez - 0.5}, "sections:mark_section")
 		if marker ~= nil then
 			marker:set_properties({
 				visual_size={x=sizez * 2, y=sizey * 2},
 				collisionbox = {0,0,0, 0,0,0},
 			})
+			marker:set_nametag_attributes({text = infotext})
 			marker:set_yaw(math.pi / 2)
-			marker:get_luaentity().player_name = name
 			table.insert(markers, marker)
 		end
 	end
@@ -66,31 +62,47 @@ function sections.mark_region(name, pos1, pos2, infotext)
 	marker_region[name] = markers
 end
 
-function sections.switch_region(name, pos1, pos2)
-	if marker_region[name] ~= nil then --marker already exists
-		sections.unmark_region(name)
-	else
-		sections.mark_region(name, pos1, pos2)
+function sections.mark_node(name, pos, infotext)
+	local marker = minetest.add_entity(pos, "sections:mark_node")
+	if marker ~= nil then
+		marker:set_nametag_attributes({text = infotext})
+		marker:get_luaentity().player_name = name
+		marker_region[name] = marker_region[name] or {}
+		marker_region[name][#marker_region[name] + 1] = marker
 	end
+	minetest.after(60, sections.unmark_sections, name)
 end
 
-minetest.register_entity(":sections:region_cube", {
+minetest.register_entity("sections:mark_section", {
 	initial_properties = {
 		visual = "upright_sprite",
 		textures = {"sections_cube_mark.png"},
-		--use_texture_alpha = true,
 		physical = false,
 		glow = 15,
 		collide_with_objects = false,
 		pointable = false,
 		static_save = false,	
 	},
-	on_step = function(self, dtime)
-		self.ttl = self.ttl or 60
-		self.ttl = self.ttl - dtime
-		if self.ttl <= 0 then
-			self.object:remove()
-		end
-	end,
 })
 
+minetest.register_entity("sections:mark_node", {
+	initial_properties = {
+		visual = "cube",
+		textures = {
+			"sections_cube_mark.png",
+			"sections_cube_mark.png",
+			"sections_cube_mark.png",
+			"sections_cube_mark.png",
+			"sections_cube_mark.png",
+			"sections_cube_mark.png",
+		},
+		physical = false,
+		visual_size = {x = 1.1, y = 1.1},
+		collisionbox = {-0.55,-0.55,-0.55, 0.55,0.55,0.55},
+		glow = 8,
+		static_save = false,
+	},
+	on_punch = function(self)
+		self.object:remove()
+	end,
+})

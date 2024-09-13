@@ -51,9 +51,18 @@ local function find_surface(pos)
 	local pos1 = table.copy(pos)
 	for _ = 1,50 do
 		local node = minetest.get_node(pos1)
+		local cnt = 10
+		while node.name == "ignore" and cnt > 0 do
+			minetest.load_area(pos1)
+			node = minetest.get_node(pos1)
+			cnt = cnt - 1
+		end
 		if node.name ~= "air" then
-			pos1.y = pos1.y + 1
-			return pos1
+			local ndef = minetest.registered_nodes[node.name]
+			if ndef and not ndef.buildable_to then
+				pos1.y = pos1.y + 1
+				return pos1
+			end
 		end
 		pos1.y = pos1.y - 1
 	end
@@ -135,30 +144,43 @@ function sections.section_corners(pos)
 	return pos1, pos2
 end
 
+function sections.section_center(pos)
+	local xpos = (math.floor((pos.x + 8) / 16) * 16) - 8
+	local ypos = (math.floor((pos.y + 8) / 16) * 16) - 8
+	local zpos = (math.floor((pos.z + 8) / 16) * 16) - 8
+	return {x = xpos + 7.5, y = ypos + 7.5, z = zpos + 7.5}
+end
+
 -- Place wool blocks in all 4 corners of the section area
 function sections.place_markers(pos1, pos2)
 	local pos
+	local tbl = {}
 	
 	pos = find_surface({x = pos1.x, y = pos2.y, z = pos1.z})
 	if pos then
-		minetest.add_node(pos, {name = "wool:yellow"})
+		minetest.set_node(pos, {name = "wool:yellow"})
+		table.insert(tbl, pos)
 	end
 	pos = find_surface({x = pos2.x, y = pos2.y, z = pos2.z})
 	if pos then
-		minetest.add_node(pos, {name = "wool:yellow"})
+		minetest.set_node(pos, {name = "wool:yellow"})
+		table.insert(tbl, pos)
 	end
 	pos = find_surface({x = pos2.x, y = pos2.y, z = pos1.z})
 	if pos then
-		minetest.add_node(pos, {name = "wool:yellow"})
+		minetest.set_node(pos, {name = "wool:yellow"})
+		table.insert(tbl, pos)
 	end
 	pos = find_surface({x = pos1.x, y = pos2.y, z = pos2.z})
 	if pos then
-		minetest.add_node(pos, {name = "wool:yellow"})
+		minetest.set_node(pos, {name = "wool:yellow"})
+		table.insert(tbl, pos)
 	end
+	return tbl
 end
 
 -- Iterator over all sections in 'dimension'
---     @dimension - number of sections: <111/222/333/555>
+--     @dimension - number of sections: <1/2/3/5>
 --     @func(npos, caller, num, param)
 --         @npos   - new position within section
 --         @caller - chatcommand caller name
@@ -184,19 +206,20 @@ function sections.for_all_positions(dimension, func, caller, param)
 		end
 	end
 	if cnt == 1 then
-		return cnt, " ", "is "
+		return cnt, " "
 	else
-		return cnt, "s ", "are "
+		return cnt, "s "
 	end
 end
 
-function sections.get_current_section(caller)
+function sections.mark_current_section(caller)
 	local player = minetest.get_player_by_name(caller)
 	if player then
+		sections.unmark_sections(caller)
 		local pos = vector.round(player:get_pos())
 		local number = sections.section_num(pos)
 		local pos1, pos2 = sections.section_corners(pos)
-		sections.mark_region(caller, pos1, pos2, number)
+		sections.mark_section(caller, pos1, pos2, number)
 		return number
 	end
 end

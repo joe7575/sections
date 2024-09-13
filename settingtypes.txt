@@ -1,3 +1,3 @@
 # To create and protect sections, special "admin" privs are necessary
-sections_admin_privs (Privs to create sections) string superminer
+sections_admin_privs (Privs to create sections) string sections
 
