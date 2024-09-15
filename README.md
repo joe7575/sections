@@ -66,7 +66,7 @@ You need the 'sections' priv to use this tool.
 
 ## License
 
-Copyright (C) 2023-2024 Joachim Stolberg
+Copyright (C) 2019-2024 Joachim Stolberg
 
 Code: Licensed under the GNU AGPL version 3 or later. See LICENSE.txt
 
@@ -74,4 +74,4 @@ Textures: CC BY-SA 3.0
 
 ## History
 
-- v1.00 (2024-09-12) * First release
+- v1.00 (2024-09-15) * First release
