@@ -54,6 +54,16 @@ To be able to protect and delete sections, the player must have additional privi
 Which additional privs are used can be configured. See 'settingtypes.txt'.
 By default, the 'sections' priv is used. But you can also use any other available priv.  
 
+### Admin Protection Tool
+
+The Admin Protection Tool is a tool that allows you to convert protection blocks
+from the 'protector' mod to sections and to show protection blocks around you.
+You need the 'sections' priv to use this tool.
+
+- to convert a protection block to a section, left-click with the tool
+  on the protection block
+- to show protection blocks around you, right-click with the tool in your hand
+
 ## License
 
 Copyright (C) 2023-2024 Joachim Stolberg

@@ -32,8 +32,15 @@ local function get_keys(t)
 	end
 	return keys
   end
-  
-  
+
+local function add_to_inventory_or_drop(pos, item, placer)
+  local inv = placer:get_inventory()
+  local leftover = inv:add_item("main", item) 
+  if leftover:get_count() > 0 then
+	  minetest.add_item(pos, leftover)
+  end
+end
+
 local function protect_section(itemstack, placer, pointed_thing)
 	local name = placer:get_player_name()
 	if name and minetest.check_player_privs(name, sections.admin_privs) then
@@ -52,7 +59,7 @@ local function protect_section(itemstack, placer, pointed_thing)
 				end
 				sections.protect_section(owner, "1", names)
 				minetest.remove_node(pos)
-				minetest.add_item(pos, {name = node.name})
+				add_to_inventory_or_drop(pos, {name = node.name}, placer)
 				minetest.chat_send_player(name, "Section is protection by " .. owner)
 				return
 			else
@@ -60,7 +67,8 @@ local function protect_section(itemstack, placer, pointed_thing)
 			end
 		end
 	else
-		minetest.chat_send_player(placer:get_player_name(), "You don't have the necessary privs!")
+		minetest.chat_send_player(placer:get_player_name(), 
+			"You don't have the necessary privs!")
 	end
 end
 
@@ -81,8 +89,11 @@ end
 local function do_nothing(itemstack, placer, pointed_thing)
 end
 	
+-- Tool to convert protection blocks to sections
+-- and to show protection blocks around you
 minetest.register_node("sections:tool", {
-	description = "Admin Protection Tool (left/use = convert protection block to section,\nright/place = show protection blocks around you)",
+	description = "Admin Protection Tool (left/use = convert protection" ..
+		" block to section,\nright/place = show protection blocks around you)",
 	inventory_image = "sections_tool.png",
 	wield_image = "sections_tool.png",
 	liquids_pointable = true,
@@ -93,4 +104,14 @@ minetest.register_node("sections:tool", {
 	on_secondary_use = show_protection_blocks,
 	node_placement_prediction = "",
 	stack_max = 1,
+})
+
+-- Tool recipe
+minetest.register_craft({
+	output = "sections:tool",
+	recipe = {
+		{"", "", ""},
+		{"", "default:diamond", ""},
+		{"default:sword_wood", "", ""},
+	}
 })
