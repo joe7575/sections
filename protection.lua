@@ -248,7 +248,7 @@ minetest.register_chatcommand("section_add_player", {
 			caller, name)
 			sections.mark_current_section(caller)
 			update_mod_storage()
-			return true, "Name '" .. name .. "' added at " .. cnt .. " section" .. plural
+			return true, "Name '" .. name .. "' added to " .. cnt .. " section" .. plural
 		else
 			return false, "Syntax error: section_add_player <name> <1/2/3/5>"
 		end
@@ -267,10 +267,12 @@ minetest.register_chatcommand("section_delete_player", {
 				function(pos, caller, num, name)
 					if is_admin or is_owner(num, caller) then
 						if ProtectedSections[num].owner ~= name then
-							ProtectedSections[num].names[name] = nil
-							local text = "Name '" .. name .. "' deleted at section " .. num
-							minetest.chat_send_player(caller, text)
-							return true
+							if ProtectedSections[num].names[name] then
+								ProtectedSections[num].names[name] = nil
+								local text = "Name '" .. name .. "' deleted at section " .. num
+								minetest.chat_send_player(caller, text)
+								return true
+							end
 						end
 					else
 						local text = "You are not the owner of section " .. num
@@ -280,7 +282,7 @@ minetest.register_chatcommand("section_delete_player", {
 			caller, name)
 			sections.mark_current_section(caller)
 			update_mod_storage()
-			return true, "Name '" .. name .. "' deleted " .. cnt .. " section." .. plural
+			return true, "Name '" .. name .. "' deleted in " .. cnt .. " section" .. plural
 		else
 			return false, "Syntax error: section_delete_player <name> <1/2/3/5>"
 		end

@@ -60,6 +60,7 @@ function sections.mark_section(name, pos1, pos2, infotext)
 	end
 
 	marker_region[name] = markers
+	minetest.after(60, sections.unmark_sections, name)
 end
 
 function sections.mark_node(name, pos, infotext)
