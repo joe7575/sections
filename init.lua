@@ -17,7 +17,7 @@
 ]]--
 
 sections = {}
-sections.admin_privs = minetest.settings:get("sections_admin_privs")
+sections.admin_privs = minetest.settings:get("sections_admin_privs") or "sections"
 if sections.admin_privs == "sections" then
 	minetest.register_privilege("sections")
 end
