@@ -101,8 +101,8 @@ function minetest.is_protected(pos, name)
 	return old_is_protected(pos, name)
 end
 
-function sections.protect_section(caller, demension, names)
-	sections.for_all_positions(dimension, 
+function sections.protect_section(caller, dimension, names)
+	local cnt, plural = sections.for_all_positions(dimension,
 		function(pos, caller, num, param)
 			if not ProtectedSections[num] then
 				ProtectedSections[num] = {owner = caller, names = names or {}}
@@ -112,6 +112,7 @@ function sections.protect_section(caller, demension, names)
 	caller)
 	sections.mark_current_section(caller)
 	update_mod_storage()
+	return cnt, plural
 end
 
 function sections.get_owner(pos)
@@ -179,16 +180,7 @@ minetest.register_chatcommand("section_protect", {
 	privs = {[sections.admin_privs] = true},
 	description = "Protect the section(s) around you." .. HELP,
 	func = function(caller, dimension)
-		local cnt, plural = sections.for_all_positions(dimension, 
-			function(pos, caller, num, param)
-				if not ProtectedSections[num] then
-					ProtectedSections[num] = {owner = caller, names = {}}
-					return true
-				end
-			end,
-		caller)
-		sections.mark_current_section(caller)
-		update_mod_storage()
+		local cnt, plural = sections.protect_section(caller, dimension)
 		return true, cnt .. " section" .. plural .. " protected"
 	end,
 })

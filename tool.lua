@@ -57,10 +57,10 @@ local function protect_section(itemstack, placer, pointed_thing)
 						names[s] = true
 					end
 				end
-				sections.protect_section(owner, "1", names)
+				local cnt, plural = sections.protect_section(owner, "2", names)
 				minetest.remove_node(pos)
 				add_to_inventory_or_drop(pos, {name = node.name}, placer)
-				minetest.chat_send_player(name, "Section is protection by " .. owner)
+				minetest.chat_send_player(name, cnt .. " section" .. plural .. " protected for " .. owner)
 				return
 			else
 				minetest.chat_send_player(name, "This is no protection block!")
