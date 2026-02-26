@@ -95,6 +95,9 @@ function minetest.is_protected(pos, name)
 		local num = sections.section_num(pos)
 		
 		if not is_admin and not has_area_rights(num, name) then
+			if ProtectedSections[num] and ProtectedSections[num].owner then
+				minetest.chat_send_player(name, "This section is protected by " .. ProtectedSections[num].owner .. "!")
+			end
 			return true
 		end
 	end
@@ -123,6 +126,19 @@ end
 -------------------------------------------------------------------------------
 -- Chat commands
 -------------------------------------------------------------------------------
+minetest.register_chatcommand("section", {
+	params = "",
+	description = "DShow the section you are in",
+	privs = {interact = true},
+	func = function(name)
+		local player = minetest.get_player_by_name(name)
+		if player then
+			local number = sections.mark_current_section(name)
+			return true, "Section number: "..number
+		end
+	end,
+})
+
 minetest.register_chatcommand("section_info", {
 	params = "<1/2/3/5>",
 	description = "Output owner and additional player names for the section(s) around you." .. HELP,
