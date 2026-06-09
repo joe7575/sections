@@ -17,6 +17,22 @@ precisely within a single map block.
 The 8-block border provides sufficient distance to neighboring buildings for a hall
 or shell around the facility.
 
+### Interaction with the `protector` mod
+
+If the `protector` mod by TenPlus1 is loaded (declared as
+`optional_depends` in `mod.conf`), the two protection systems cooperate:
+
+- Build permission is the **OR** of section and protector checks. A player
+  is blocked if either system says so. This means a Protector block
+  inside a section owned by someone else does **not** open that section —
+  it only protects the Protector block's own sub-area.
+- The HUD only shows `Owner: ... [Section]`. Protector block owners are
+  shown by the protector mod's own HUD (via `protector_hud_interval`).
+- Migrating from the older "Protector Redux" (sorcerykid): that mod
+  defines a `protector:protect3` node that the TenPlus1 version does not.
+  Such blocks will appear as unknown nodes after the switch and can be
+  removed with the bundled `remove_unknown` mod.
+
 ### Commands
 
 All section commands always operate on the four sections -1, 0, +1, +2
@@ -56,6 +72,20 @@ To be able to use the admin chat commands (protect, delete, etc.) the player
 must have additional privileges (privs). Which additional privs are used can
 be configured. See 'settingtypes.txt'.
 By default, the 'sections' priv is used. But you can also use any other available priv.  
+
+### Protection HUD
+
+While a player is standing inside a protected section, a small text is shown
+in the top-right corner of the screen, e.g.:
+
+```
+Owner: Steve [Section]
+```
+
+`protector:protect*` block owners are shown by the `protector` mod's own
+HUD (if enabled via `protector_hud_interval`) — `sections` does not
+duplicate that display. The HUD is updated every 5 seconds. It is not
+shown when the player is not inside a protected section.
 
 ### Section Protection Tool
 

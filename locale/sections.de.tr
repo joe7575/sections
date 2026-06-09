@@ -1,4 +1,5 @@
 # textdomain: sections
+Owner: @1 [Section]=Besitzer: @1 [Section]
 @n(Der Parameter wählt 1, 2x2, 3x3 oder 5x5 Sections in X/Z;@nin Y werden immer die 4 Sections -1, 0, +1, +2 abgedeckt)=
 Mark the corners of the outer boundaries of all selected sectors with wool blocks.=Markiere die Ecken der äußeren Grenzen aller ausgewählten Sektoren mit Wollblöcken.
 Marker placed at @1=Markierung gesetzt bei @1

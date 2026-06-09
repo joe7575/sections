@@ -98,12 +98,8 @@ function minetest.is_protected(pos, name)
 	if name and name ~= "" then
 		local is_admin = minetest.check_player_privs(name, sections.admin_privs)
 		local num = sections.section_num(pos)
-		
+
 		if not is_admin and not has_area_rights(num, name) then
-			-- chat message disabled (protector mod shows protection info instead)
-			--[[ if ProtectedSections[num] and ProtectedSections[num].owner then
-				minetest.chat_send_player(name, "This section is protected by " .. ProtectedSections[num].owner .. "!")
-			end --]]
 			return true
 		end
 	end
