@@ -1,6 +1,6 @@
 # Sections
 
-**Protection mod for areas with fixed 16x16x16 grid for server staff**
+**Protection mod for areas with a fixed 16x16x16 grid**
 
 ## Introduction
 
