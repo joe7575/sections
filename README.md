@@ -10,10 +10,12 @@ Examples are the spawn for and by moderators, or planned settlements for other p
 Sections are blocks of size 16x16x16. By default the grid is aligned to the
 world origin (offset 0). Optionally the grid can be offset by 8 blocks
 (configurable via the `sections_grid_offset` setting), so that section
-boundaries run right through the middle of map blocks. The idea behind this
-is that e.g. many Techage facilities should be built within a map block, so
-that there can be no partial failures if not all map blocks of a facility are
-loaded.
+boundaries run right through the middle of map blocks. 
+
+The idea behind this is that, for example, many Techage facilities should be built
+precisely within a single map block.
+The 8-block border provides sufficient distance to neighboring buildings for a hall
+or shell around the facility.
 
 ### Commands
 
@@ -94,7 +96,7 @@ new `<lang>.tr` file in `locale/` based on `template.txt`.
 
 ## License
 
-Copyright (C) 2019-2024 Joachim Stolberg
+Copyright (C) 2019-2026 Joachim Stolberg
 
 Code: Licensed under the GNU AGPL version 3 or later. See LICENSE.txt
 
@@ -102,4 +104,5 @@ Textures: CC BY-SA 3.0
 
 ## History
 
+- v2.00 (2026-06-09) * Player mod: Tools instead of admin commands, Y=4 sections fixed
 - v1.00 (2024-09-15) * First release
