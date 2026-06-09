@@ -1,3 +1,16 @@
 # To create and protect sections, special "admin" privs are necessary
 sections_admin_privs (Privs to create sections) string sections
 
+# Section grid offset in blocks. Default 0 means section borders are aligned
+# to the world origin. With 8 the grid is offset by 8 blocks relative to the
+# world origin so that section boundaries run through the middle of map blocks.
+# Valid range: 0..15.
+sections_grid_offset (Section grid offset) int 0 0 15
+
+# Item taken from the player's inventory when the Section Protection Tool is
+# used (right/place) to claim up to 4 sections.
+sections_tool_cost_item (Section Protection Tool cost item) string default:diamond
+
+# Number of items taken per use of the Section Protection Tool.
+sections_tool_cost_count (Section Protection Tool cost count) int 4 0 64
+

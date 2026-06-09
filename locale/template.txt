@@ -1,0 +1,33 @@
+# textdomain: sections
+@n(The parameter selects 1, 2x2, 3x3, or 5x5 sections in X/Z;@nY always covers the 4 sections -1, 0, +1, +2)=
+Mark the corners of the outer boundaries of all selected sectors with wool blocks.=
+Marker placed at @1=
+@1 markers placed=
+Error: No markers placed!=
+Protect the section(s) around you.=
+@1 section@2 protected=
+Change the owner of the section you are in (and the three sections above/below it).=
+Owner changed for @1 section@2=
+Syntax error: section_change_owner <name>=
+Add an extra player to the section you are in (and the three sections above/below it).=
+Name '@1' added for section @2=
+You are not the owner of section @1=
+Name '@1' added to @2 section@3=
+Syntax error: section_add_player <name>=
+Delete an extra player from the section you are in (and the three sections above/below it).=
+Name '@1' deleted at section @2=
+Name '@1' deleted in @2 section@3=
+Syntax error: section_delete_player <name>=
+Delete the section you are in (and the three sections above/below it).=
+@1 section@2deleted=
+You don't have the necessary privs!=
+@1: @2=
+@1: no protection=
+Section @1=
+Section already protected by @1!=
+All 4 sections are already protected!=
+Not enough @1 (need @2)!=
+@1 section(s) protected for @2=
+Section Protection Tool=
+left/punch @= show owner of the 4 sections around the block (+2/+1/0/-1)=
+right/place @= protect those 4 sections for you (costs @1x @2)=

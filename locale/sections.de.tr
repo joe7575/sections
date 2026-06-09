@@ -1,0 +1,33 @@
+# textdomain: sections
+@n(Der Parameter wählt 1, 2x2, 3x3 oder 5x5 Sections in X/Z;@nin Y werden immer die 4 Sections -1, 0, +1, +2 abgedeckt)=
+Mark the corners of the outer boundaries of all selected sectors with wool blocks.=Markiere die Ecken der äußeren Grenzen aller ausgewählten Sektoren mit Wollblöcken.
+Marker placed at @1=Markierung gesetzt bei @1
+@1 markers placed=@1 Markierungen gesetzt
+Error: No markers placed!=Fehler: Keine Markierungen gesetzt!
+Protect the section(s) around you.=Schütze die Section(s) um dich herum.
+@1 section@2 protected=@1 Section@2 geschützt
+Change the owner of the section you are in (and the three sections above/below it).=Ändere den Besitzer der Section, in der du dich befindest (und der drei Sections darüber/darunter).
+Owner changed for @1 section@2=Besitzer geändert für @1 Section@2
+Syntax error: section_change_owner <name>=Syntaxfehler: section_change_owner <Name>
+Add an extra player to the section you are in (and the three sections above/below it).=Füge einen weiteren Spieler zur Section hinzu, in der du dich befindest (und den drei Sections darüber/darunter).
+Name '@1' added for section @2=Name '@1' hinzugefügt für Section @2
+You are not the owner of section @1=Du bist nicht der Besitzer von Section @1
+Name '@1' added to @2 section@3=Name '@1' hinzugefügt zu @2 Section@3
+Syntax error: section_add_player <name>=Syntaxfehler: section_add_player <Name>
+Delete an extra player from the section you are in (and the three sections above/below it).=Entferne einen Spieler aus der Section, in der du dich befindest (und den drei Sections darüber/darunter).
+Name '@1' deleted at section @2=Name '@1' entfernt bei Section @2
+Name '@1' deleted in @2 section@3=Name '@1' entfernt in @2 Section@3
+Syntax error: section_delete_player <name>=Syntaxfehler: section_delete_player <Name>
+Delete the section you are in (and the three sections above/below it).=Lösche die Section, in der du dich befindest (und die drei Sections darüber/darunter).
+@1 section@2deleted=@1 Section@2gelöscht
+You don't have the necessary privs!=Du hast nicht die nötigen Rechte!
+@1: @2=@1: @2
+@1: no protection=@1: kein Schutz
+Section @1=Section @1
+Section already protected by @1!=Section wird bereits geschützt von @1!
+All 4 sections are already protected!=Alle 4 Sections sind bereits geschützt!
+Not enough @1 (need @2)!=Nicht genug @1 (benötigt @2)!
+@1 section(s) protected for @2=@1 Section(s) geschützt für @2
+Section Protection Tool=Section-Schutzwerkzeug
+left/punch @= show owner of the 4 sections around the block (+2/+1/0/-1)=Links/Schlag = zeige Besitzer der 4 Sections um den Block (+2/+1/0/-1)
+right/place @= protect those 4 sections for you (costs @1x @2)=Rechts/Setzen = schütze diese 4 Sections für dich (kostet @1x @2)

@@ -16,97 +16,131 @@
   along with this program.  If not, see <https://www.gnu.org/licenses/>.
 ]]--
 
-local P2S = function(pos) if pos then return minetest.pos_to_string(pos) end end
-local ForeignProtectionNodes = {
-	["protector:protect"] = true, 
-	["protector:protect2"] = true, 
-	["protector:protect3"] = true,
-	["protector:protect_hidden"] = true,
-	["protector:protect3"] = true
-}
+local COST_ITEM = minetest.settings:get("sections_tool_cost_item") or "default:diamond"
+local COST_COUNT = tonumber(minetest.settings:get("sections_tool_cost_count")) or 4
+local S = sections.S
 
-local function get_keys(t)
-	local keys = {}
-	for key,_ in pairs(t) do
-	  table.insert(keys, key)
-	end
-	return keys
-  end
-
-local function add_to_inventory_or_drop(pos, item, placer)
-  local inv = placer:get_inventory()
-  local leftover = inv:add_item("main", item) 
-  if leftover:get_count() > 0 then
-	  minetest.add_item(pos, leftover)
-  end
+-- Returns the 4 section positions (+2, +1, 0, -1) in Y direction for the
+-- section that contains the given node position.
+local function get_section_positions(pos)
+	local center = sections.section_center(pos)
+	local y_step = 16
+	return {
+		{x = center.x, y = center.y + 2 * y_step, z = center.z}, -- +2
+		{x = center.x, y = center.y + 1 * y_step, z = center.z}, -- +1
+		{x = center.x, y = center.y,                z = center.z}, --  0
+		{x = center.x, y = center.y - 1 * y_step, z = center.z}, -- -1
+	}
 end
 
-local function protect_section(itemstack, placer, pointed_thing)
+local function owner_of(pos)
+	local num = sections.section_num(pos)
+	local items = sections.ProtectedSections[num]
+	if not items then
+		return nil
+	end
+	return items.owner or sections.admin_privs
+end
+
+-- Left click / "use" (punch)
+local function on_punch(itemstack, placer, pointed_thing)
+	if pointed_thing.type ~= "node" then
+		return
+	end
 	local name = placer:get_player_name()
-	if name and minetest.check_player_privs(name, sections.admin_privs) then
-		if pointed_thing.type == "node" then
-			local pos = pointed_thing.under
-			local node = minetest.get_node(pos)
-			local meta = minetest.get_meta(pos)
-			if ForeignProtectionNodes[node.name] then
-				local owner = meta:get_string("owner")
-				local members = meta:get_string("members")
-				local names = {}
-				if members ~= "" then
-					for _,s in ipairs(string.split(members, " ")) do
-						names[s] = true
-					end
-				end
-				local cnt, plural = sections.protect_section(owner, "2", names)
-				minetest.remove_node(pos)
-				add_to_inventory_or_drop(pos, {name = node.name}, placer)
-				minetest.chat_send_player(name, cnt .. " section" .. plural .. " protected for " .. owner)
-				return
-			else
-				minetest.chat_send_player(name, "This is no protection block!")
-			end
+	if not minetest.check_player_privs(name, "interact") then
+		minetest.chat_send_player(name, S("You don't have the necessary privs!"))
+		return
+	end
+	local positions = get_section_positions(pointed_thing.under)
+	local labels = {"+2", "+1", " 0", "-1"}
+	for i, p in ipairs(positions) do
+		local owner = owner_of(p)
+		local text
+		if owner then
+			text = S("@1: @2", labels[i], owner)
+		else
+			text = S("@1: no protection", labels[i])
 		end
-	else
-		minetest.chat_send_player(placer:get_player_name(), 
-			"You don't have the necessary privs!")
+		minetest.chat_send_player(name, text)
 	end
+	local pos1, pos2 = sections.section_corners(positions[3])
+	sections.unmark_sections(name)
+	sections.mark_section(name, pos1, pos2, S("Section @1", sections.section_num(positions[3])))
 end
 
-local function show_protection_blocks(itemstack, placer, pointed_thing)
-	local pos = placer:get_pos()
-	local pos1 = {x = pos.x - 20, y = pos.y - 20, z = pos.z - 20}
-	local pos2 = {x = pos.x + 20, y = pos.y + 20, z = pos.z + 20}
-	local names = get_keys(ForeignProtectionNodes)
-	local cnt = 0
+-- Right click / "place" -> protect up to 4 sections for the player
+local function on_place(itemstack, placer, pointed_thing)
+	if pointed_thing.type ~= "node" then
+		return
+	end
 	local name = placer:get_player_name()
-	for _, pos3 in ipairs(minetest.find_nodes_in_area(pos1, pos2, names)) do
-		sections.mark_node(name, pos3, "protect", "#FFFFFF", 10)
-		cnt = cnt + 1
+	if not minetest.check_player_privs(name, "interact") then
+		minetest.chat_send_player(name, S("You don't have the necessary privs!"))
+		return
 	end
-	minetest.chat_send_player(name, cnt .. " protection blocks found")
+	local positions = get_section_positions(pointed_thing.under)
+	local to_protect = {}
+	local blocked_by = nil
+	for _, p in ipairs(positions) do
+		local owner = owner_of(p)
+		if not owner then
+			to_protect[#to_protect + 1] = p
+		elseif owner ~= name then
+			blocked_by = owner
+		end
+	end
+	if blocked_by then
+		minetest.chat_send_player(name, S("Section already protected by @1!", blocked_by))
+		return
+	end
+	if #to_protect == 0 then
+		minetest.chat_send_player(name, S("All 4 sections are already protected!"))
+		return
+	end
+	-- Take the cost. Only remove items when we actually have enough and only
+	-- as many as needed.
+	local inv = placer:get_inventory()
+	local total = 0
+	for i = 1, inv:get_size("main") do
+		local stack = inv:get_stack("main", i)
+		if stack:get_name() == COST_ITEM then
+			total = total + stack:get_count()
+		end
+	end
+	if total < COST_COUNT then
+		minetest.chat_send_player(name, S("Not enough @1 (need @2)!", COST_ITEM, tostring(COST_COUNT)))
+		return
+	end
+	inv:remove_item("main", {name = COST_ITEM, count = COST_COUNT})
+
+	sections.unmark_sections(name)
+	for _, p in ipairs(to_protect) do
+		local num = sections.section_num(p)
+		sections.ProtectedSections[num] = {owner = name, names = {}}
+		local pos1, pos2 = sections.section_corners(p)
+		sections.mark_section(name, pos1, pos2, num)
+	end
+	sections.save()
+	minetest.chat_send_player(name, S("@1 section(s) protected for @2", tostring(#to_protect), name))
 end
 
-local function do_nothing(itemstack, placer, pointed_thing)
-end
-	
--- Tool to convert protection blocks to sections
--- and to show protection blocks around you
 minetest.register_node("sections:tool", {
-	description = "Admin Protection Tool (left/use = convert protection" ..
-		" block to section,\nright/place = show protection blocks around you)",
+	description = S("Section Protection Tool") .. "\n" ..
+		S("left/punch = show owner of the 4 sections around the block (+2/+1/0/-1)") .. "\n" ..
+		S("right/place = protect those 4 sections for you (costs @1x @2)", tostring(COST_COUNT), COST_ITEM),
 	inventory_image = "sections_tool.png",
 	wield_image = "sections_tool.png",
 	liquids_pointable = true,
 	use_texture_alpha = true,
-	groups = {cracky=1, book=1},
-	on_use = protect_section,
-	on_place = do_nothing,
-	on_secondary_use = show_protection_blocks,
+	groups = {cracky = 1, book = 1},
+	on_use = on_punch,
+	on_place = on_place,
+	on_secondary_use = on_place,
 	node_placement_prediction = "",
 	stack_max = 1,
 })
 
--- Tool recipe
 minetest.register_craft({
 	output = "sections:tool",
 	recipe = {

@@ -19,33 +19,35 @@
 -------------------------------------------------------------------------------
 -- Local helper functions
 -------------------------------------------------------------------------------
-local Offsets222 = {}
-local Offsets333 = {}
-local Offsets555 = {}
+local OffsetsXZ1 = {}
+local OffsetsXZ2 = {}
+local OffsetsXZ3 = {}
+local OffsetsXZ5 = {}
+local OFFSET = tonumber(minetest.settings:get("sections_grid_offset")) or 0
 
-for x = -8, 8, 8 do
-	for y = -8, 8, 8 do
-		for z = -8, 8, 8 do
-			table.insert(Offsets222, {x = x, y = y, z = z})
-		end
-	end
+-- X/Z-only offsets (Y is handled separately by the Y-stack below)
+table.insert(OffsetsXZ1, {x = 0,  z = 0})
+for _, xz in ipairs({{-8,0},{8,0},{0,-8},{0,8}}) do
+	table.insert(OffsetsXZ2, {x = xz[1], z = xz[2]})
 end
-
 for x = -16, 16, 16 do
-	for y = -16, 16, 16 do
-		for z = -16, 16, 16 do
-			table.insert(Offsets333, {x = x, y = y, z = z})
-		end
+	for z = -16, 16, 16 do
+		table.insert(OffsetsXZ3, {x = x, z = z})
+	end
+end
+for x = -32, 32, 16 do
+	for z = -32, 32, 16 do
+		table.insert(OffsetsXZ5, {x = x, z = z})
 	end
 end
 
-for x = -32, 32, 16 do
-	for y = -32, 32, 16 do
-		for z = -32, 32, 16 do
-			table.insert(Offsets555, {x = x, y = y, z = z})
-		end
-	end
-end
+-- Always 4 sections in Y: -1, 0, +1, +2 (relative to the section containing 'pos')
+local YStack = {
+	{x = 0, y = -16, z = 0}, -- -1
+	{x = 0, y =   0, z = 0}, --  0
+	{x = 0, y =  16, z = 0}, -- +1
+	{x = 0, y =  32, z = 0}, -- +2
+}
 
 local function find_surface(pos)
 	local pos1 = table.copy(pos)
@@ -68,42 +70,29 @@ local function find_surface(pos)
 	end
 end
 
-local function iter_sections(pos, dimension)
-	local i = 0
+-- Returns an iterator over a 1x4 / 2x4 / 3x4 / 5x4 stack of sections:
+-- the X/Z layout is selected by 'dimension' (1, 2, 3, or 5),
+-- the Y layout is always the 4 sections -1, 0, +1, +2 relative to the
+-- section that contains 'pos'. The base position is the XZ center of the
+-- section containing 'pos' (Y from 'pos').
+local function iter_xz_sections(pos, dimension)
+	local xz_tbl
 	if dimension == "2" then
-		-- 2x2x2 = 8 section
-		return function()
-			i = i + 1
-			local offs = Offsets222[i]
-			if offs then
-				return {x = pos.x + offs.x, y = pos.y + offs.y, z = pos.z + offs.z}
-			end
-		end
+		xz_tbl = OffsetsXZ2
 	elseif dimension == "3" then
-		-- 3x3x3 = 27 section
-		return function()
-			i = i + 1
-			local offs = Offsets333[i]
-			if offs then
-				return {x = pos.x + offs.x, y = pos.y + offs.y, z = pos.z + offs.z}
-			end
-		end
+		xz_tbl = OffsetsXZ3
 	elseif dimension == "5" then
-		-- 5x5x5 = 125 sections
-		return function()
-			i = i + 1
-			local offs = Offsets555[i]
-			if offs then
-				return {x = pos.x + offs.x, y = pos.y + offs.y, z = pos.z + offs.z}
-		  end
-		end
+		xz_tbl = OffsetsXZ5
 	else
-		-- 1x1x1 = 1 section
-		return function()
-			i = i + 1
-			if i == 1 then
-				return pos
-			end
+		xz_tbl = OffsetsXZ1
+	end
+	local i = 0
+	return function()
+		i = i + 1
+		local xz = xz_tbl[((i - 1) % #xz_tbl) + 1]
+		local y  = YStack[math.floor((i - 1) / #xz_tbl) + 1]
+		if xz and y then
+			return {x = pos.x + xz.x, y = pos.y + y.y, z = pos.z + xz.z}
 		end
 	end
 end
@@ -112,9 +101,9 @@ end
 -- API functions
 -------------------------------------------------------------------------------
 function sections.section_num(pos)
-	local xpos = math.floor((pos.x + 8) / 16)
-	local ypos = math.floor((pos.y + 8) / 16)
-	local zpos = math.floor((pos.z + 8) / 16)
+	local xpos = math.floor((pos.x + OFFSET) / 16)
+	local ypos = math.floor((pos.y + OFFSET) / 16)
+	local zpos = math.floor((pos.z + OFFSET) / 16)
 	if xpos < 0 then
 		xpos = "E"..(-xpos)
 	else
@@ -136,18 +125,18 @@ end
 -- Returns the two corner positions of the section with the smallest 
 -- and largest coordinates.
 function sections.section_corners(pos)
-	local xpos = (math.floor((pos.x + 8) / 16) * 16) - 8
-	local ypos = (math.floor((pos.y + 8) / 16) * 16) - 8
-	local zpos = (math.floor((pos.z + 8) / 16) * 16) - 8
+	local xpos = (math.floor((pos.x + OFFSET) / 16) * 16) - OFFSET
+	local ypos = (math.floor((pos.y + OFFSET) / 16) * 16) - OFFSET
+	local zpos = (math.floor((pos.z + OFFSET) / 16) * 16) - OFFSET
 	local pos1 = {x = xpos, y = ypos, z = zpos}
 	local pos2 = {x = xpos + 15, y = ypos + 15, z = zpos + 15}
 	return pos1, pos2
 end
 
 function sections.section_center(pos)
-	local xpos = (math.floor((pos.x + 8) / 16) * 16) - 8
-	local ypos = (math.floor((pos.y + 8) / 16) * 16) - 8
-	local zpos = (math.floor((pos.z + 8) / 16) * 16) - 8
+	local xpos = (math.floor((pos.x + OFFSET) / 16) * 16) - OFFSET
+	local ypos = (math.floor((pos.y + OFFSET) / 16) * 16) - OFFSET
+	local zpos = (math.floor((pos.z + OFFSET) / 16) * 16) - OFFSET
 	return {x = xpos + 7.5, y = ypos + 7.5, z = zpos + 7.5}
 end
 
@@ -179,8 +168,10 @@ function sections.place_markers(pos1, pos2)
 	return tbl
 end
 
--- Iterator over all sections in 'dimension'
---     @dimension - number of sections: <1/2/3/5>
+-- Iterator over the four-section Y stack and an X/Z selection.
+--     @dimension - X/Z selection: <1/2/3/5>
+--                  (1=only this XZ column, 2=2x2 XZ, 3=3x3 XZ, 5=5x5 XZ)
+--                  Y is always 4 sections: -1, 0, +1, +2
 --     @func(npos, caller, num, param)
 --         @npos   - new position within section
 --         @caller - chatcommand caller name
@@ -191,11 +182,11 @@ end
 --     @param  - additional chatcommand parameter
 function sections.for_all_positions(dimension, func, caller, param)
 	local cnt = 0
-	local visited_sections = {} 
+	local visited_sections = {}
 	local player = minetest.get_player_by_name(caller)
 	if player then
 		local pos = vector.round(player:get_pos())
-		for npos in iter_sections(pos, dimension) do
+		for npos in iter_xz_sections(pos, dimension) do
 			local num = sections.section_num(npos)
 			if not visited_sections[num] then
 				if func(npos, caller, num, param) then
