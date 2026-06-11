@@ -20,6 +20,11 @@ local P2S = function(pos) if pos then return minetest.pos_to_string(pos) end end
 local S = sections.S
 local HELP = S("\n(The parameter selects 1, 2x2, 3x3, or 5x5 sections in X/Z;\nY always covers the 4 sections -1, 0, +1, +2)")
 
+-- Same settings the Section Protection Tool uses, mirrored here so that
+-- /section_delete can refund the cost.
+local COST_ITEM = minetest.settings:get("sections_tool_cost_item") or "default:diamond"
+local COST_COUNT = tonumber(minetest.settings:get("sections_tool_cost_count")) or 4
+
 ------------------------------------------------------------------
 -- Data base storage
 -------------------------------------------------------------------
@@ -284,6 +289,18 @@ minetest.register_chatcommand("section_delete", {
 			end,
 		caller)
 		update_mod_storage()
+		-- Refund the protection cost to the caller, even if only one or a
+		-- few sections were actually released. Mirrors the flat cost the
+		-- tool charges per /section_protect call.
+		if cnt > 0 then
+			local player = minetest.get_player_by_name(caller)
+			if player then
+				player:get_inventory():add_item("main",
+					{name = COST_ITEM, count = COST_COUNT})
+				minetest.chat_send_player(caller,
+					S("@1 x @2 refunded", tostring(COST_COUNT), COST_ITEM))
+			end
+		end
 		return true, S("@1 section@2deleted", tostring(cnt), plural)
 	end,
 })

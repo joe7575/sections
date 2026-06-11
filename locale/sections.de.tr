@@ -1,6 +1,6 @@
 # textdomain: sections
 Owner: @1 [Section]=Besitzer: @1 [Section]
-@n(Der Parameter wählt 1, 2x2, 3x3 oder 5x5 Sections in X/Z;@nin Y werden immer die 4 Sections -1, 0, +1, +2 abgedeckt)=
+@n(The parameter selects 1, 2x2, 3x3, or 5x5 sections in X/Z;@nY always covers the 4 sections -1, 0, +1, +2)=
 Mark the corners of the outer boundaries of all selected sectors with wool blocks.=Markiere die Ecken der äußeren Grenzen aller ausgewählten Sektoren mit Wollblöcken.
 Marker placed at @1=Markierung gesetzt bei @1
 @1 markers placed=@1 Markierungen gesetzt
@@ -20,6 +20,7 @@ Name '@1' deleted at section @2=Name '@1' entfernt bei Section @2
 Name '@1' deleted in @2 section@3=Name '@1' entfernt in @2 Section@3
 Syntax error: section_delete_player <name>=Syntaxfehler: section_delete_player <Name>
 Delete the section you are in (and the three sections above/below it).=Lösche die Section, in der du dich befindest (und die drei Sections darüber/darunter).
+@1 x @2 refunded=@1 x @2 erstattet
 @1 section@2deleted=@1 Section@2gelöscht
 You don't have the necessary privs!=Du hast nicht die nötigen Rechte!
 @1: @2=@1: @2

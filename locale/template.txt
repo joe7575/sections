@@ -1,6 +1,6 @@
 # textdomain: sections
 Owner: @1 [Section]=
-@n(Der Parameter wählt 1, 2x2, 3x3 oder 5x5 Sections in X/Z;@nin Y werden immer die 4 Sections -1, 0, +1, +2 abgedeckt)=
+@n(The parameter selects 1, 2x2, 3x3, or 5x5 sections in X/Z;@nY always covers the 4 sections -1, 0, +1, +2)=
 Mark the corners of the outer boundaries of all selected sectors with wool blocks.=
 Marker placed at @1=
 @1 markers placed=
@@ -20,6 +20,7 @@ Name '@1' deleted at section @2=
 Name '@1' deleted in @2 section@3=
 Syntax error: section_delete_player <name>=
 Delete the section you are in (and the three sections above/below it).=
+@1 x @2 refunded=
 @1 section@2deleted=
 You don't have the necessary privs!=
 @1: @2=
