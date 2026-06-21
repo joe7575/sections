@@ -55,14 +55,27 @@ local function on_punch(itemstack, placer, pointed_thing)
 	local positions = get_section_positions(pointed_thing.under)
 	local labels = {"+2", "+1", " 0", "-1"}
 	for i, p in ipairs(positions) do
-		local owner = owner_of(p)
-		local text
-		if owner then
-			text = S("@1: @2", labels[i], owner)
+		local num = sections.section_num(p)
+		local items = sections.ProtectedSections[num]
+		if items then
+			local owner = items.owner or sections.admin_privs
+			-- Collect additional player names (members) sorted alphabetically
+			local member_list = {}
+			for k, _ in pairs(items.names or {}) do
+				member_list[#member_list + 1] = k
+			end
+			table.sort(member_list)
+			local members_str = table.concat(member_list, ", ")
+			local text
+			if members_str ~= "" then
+				text = S("@1: @2 (@3)", labels[i], owner, members_str)
+			else
+				text = S("@1: @2", labels[i], owner)
+			end
+			minetest.chat_send_player(name, text)
 		else
-			text = S("@1: no protection", labels[i])
+			minetest.chat_send_player(name, S("@1: no protection", labels[i]))
 		end
-		minetest.chat_send_player(name, text)
 	end
 	local pos1, pos2 = sections.section_corners(positions[3])
 	sections.unmark_sections(name)

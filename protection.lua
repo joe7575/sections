@@ -178,100 +178,126 @@ minetest.register_chatcommand("section_protect", {
 -- Player chat commands
 -------------------------------------------------------------------------------
 minetest.register_chatcommand("section_change_owner", {
-	params = "<name> [1/2/3/5]",
-	description = S("Change the owner of the section you are in (and the three sections above/below it)."),
+	params = "<name>",
+	description = S("Change the owner of the section you are in."),
 	privs = {interact = true},
 	func = function(caller, params)
 		local _, _, name = string.find(params, "^(%S+)$")
-		local is_admin = minetest.check_player_privs(caller, sections.admin_privs)
-		if name then
-			local cnt, plural = sections.for_all_positions("1",
-				function(pos, caller, num, name)
-					if ProtectedSections[num] and (is_admin or is_owner(num, caller)) then
-						ProtectedSections[num].owner = name
-						ProtectedSections[num].names = {}
-						return true
-					end
-				end,
-			caller, name)
-			sections.mark_current_section(caller)
-			update_mod_storage()
-			return true, S("Owner changed for @1 section@2", tostring(cnt), plural)
-		else
+		if not name then
 			return false, S("Syntax error: section_change_owner <name>")
 		end
+		local is_admin = minetest.check_player_privs(caller, sections.admin_privs)
+		local player = minetest.get_player_by_name(caller)
+		if not player then
+			return false, S("Player not found.")
+		end
+		local pos = vector.round(player:get_pos())
+		local num = sections.section_num(pos)
+		if not ProtectedSections[num] then
+			return false, S("This section is not protected.")
+		end
+		if not (is_admin or is_owner(num, caller)) then
+			return false, S("You are not the owner of this section.")
+		end
+		ProtectedSections[num].owner = name
+		ProtectedSections[num].names = {}
+		sections.mark_current_section(caller)
+		update_mod_storage()
+		minetest.chat_send_player(caller,
+			S("Owner of section @1 changed to @2", num, name))
+		return true, S("Owner of section @1 changed to @2", num, name)
 	end,
 })
 
 minetest.register_chatcommand("section_add_player", {
 	params = "<name>",
-	description = S("Add an extra player to the section you are in (and the three sections above/below it)."),
+	description = S("Add an extra player to the section you are in."),
 	privs = {interact = true},
 	func = function(caller, params)
 		local is_admin = minetest.check_player_privs(caller, sections.admin_privs)
 		local _, _, name = string.find(params, "^(%S+)$")
 		if name then
-			local cnt, plural = sections.for_all_positions("1",
-				function(pos, caller, num, name)
-					if is_admin or is_owner(num, caller) then
-						if ProtectedSections[num] then
-							if ProtectedSections[num].owner ~= name then
-								if not ProtectedSections[num].names[name] then
-									ProtectedSections[num].names[name] = true
-									local text = S("Name '@1' added for section @2", name, num)
-									minetest.chat_send_player(caller, text)
-									return true
-								end
-							end
-						end
-					else
-						local text = S("You are not the owner of section @1", num)
-						minetest.chat_send_player(caller, text)
-					end
-				end,
-			caller, name)
+			local player = minetest.get_player_by_name(caller)
+			if not player then
+				return false, S("Player not found.")
+			end
+			local pos = vector.round(player:get_pos())
+			local num = sections.section_num(pos)
+			if not (is_admin or is_owner(num, caller)) then
+				minetest.chat_send_player(caller,
+					S("You are not the owner of section @1", num))
+				return false, S("You are not the owner of this section.")
+			end
+			if not ProtectedSections[num] then
+				return false, S("This section is not protected.")
+			end
+			if ProtectedSections[num].owner == name then
+				return false, S("@1 is the owner, no need to add.", name)
+			end
+			if ProtectedSections[num].names[name] then
+				return false, S("@1 already has access to this section.", name)
+			end
+			ProtectedSections[num].names[name] = true
 			sections.mark_current_section(caller)
 			update_mod_storage()
-			return true, S("Name '@1' added to @2 section@3", name, tostring(cnt), plural)
+			minetest.chat_send_player(caller,
+				S("Name '@1' added to section @2", name, num))
+			return true, S("Name '@1' added to section @2", name, num)
 		else
 			return false, S("Syntax error: section_add_player <name>")
 		end
 	end,
 })
 
-minetest.register_chatcommand("section_delete_player", {
+minetest.register_chatcommand("section_remove_player", {
 	params = "<name>",
-	description = S("Delete an extra player from the section you are in (and the three sections above/below it)."),
+	description = S("Remove a player from the section you are in."),
 	privs = {interact = true},
 	func = function(caller, params)
 		local is_admin = minetest.check_player_privs(caller, sections.admin_privs)
 		local _, _, name = string.find(params, "^(%S+)$")
 		if name then
-			local cnt, plural = sections.for_all_positions("1",
-				function(pos, caller, num, name)
-					if is_admin or is_owner(num, caller) then
-						if ProtectedSections[num].owner ~= name then
-							if ProtectedSections[num].names[name] then
-								ProtectedSections[num].names[name] = nil
-								local text = S("Name '@1' deleted at section @2", name, num)
-								minetest.chat_send_player(caller, text)
-								return true
-							end
-						end
-					else
-						local text = S("You are not the owner of section @1", num)
-						minetest.chat_send_player(caller, text)
-					end
-				end,
-			caller, name)
+			local player = minetest.get_player_by_name(caller)
+			if not player then
+				return false, S("Player not found.")
+			end
+			local pos = vector.round(player:get_pos())
+			local num = sections.section_num(pos)
+			if not (is_admin or is_owner(num, caller)) then
+				minetest.chat_send_player(caller,
+					S("You are not the owner of section @1", num))
+				return false, S("You are not the owner of this section.")
+			end
+			if not ProtectedSections[num] then
+				return false, S("This section is not protected.")
+			end
+			if not ProtectedSections[num].names[name] then
+				return false, S("@1 has no access to this section.", name)
+			end
+			ProtectedSections[num].names[name] = nil
 			sections.mark_current_section(caller)
 			update_mod_storage()
-			return true, S("Name '@1' deleted in @2 section@3", name, tostring(cnt), plural)
+			minetest.chat_send_player(caller,
+				S("Name '@1' removed from section @2", name, num))
+			return true, S("Name '@1' removed from section @2", name, num)
 		else
-			return false, S("Syntax error: section_delete_player <name>")
+			return false, S("Syntax error: section_remove_player <name>")
 		end
 	end,
 })
+
+-- Backwards-compatible alias for the old name.
+minetest.register_chatcommand("section_delete_player", {
+	params = "<name>",
+	description = S("Alias for /section_remove_player."),
+	privs = {interact = true},
+	func = function(caller, params)
+		return minetest.registered_chatcommands["section_remove_player"].func(caller, params)
+	end,
+})
+
+-- /section_info was removed: the Section Protection Tool now shows the owner
+-- and member list when left-clicking a block, so the command is redundant.
 
 minetest.register_chatcommand("section_delete", {
 	params = "",
